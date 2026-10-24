@@ -218,21 +218,21 @@ function brandPageHome() {
     </div></header>
     <main>
       <section class="hero"><div class="hero-glow hero-glow-one"></div><div class="hero-glow hero-glow-two"></div><div class="container hero-grid">
-        <div class="hero-copy"><div class="eyebrow-pill"><i></i> A calmer way to run your shop</div>
-          <h1>Business ka hisaab.<br><span>Ab bilkul clear.</span></h1>
-          <p>Stock, sales, suppliers aur reports — sab ek hi jagah. StockSetu helps you spend less time counting and more time growing your business.</p>
-          <div class="hero-actions"><a class="btn btn-lg" href="#/login">Explore your workspace ${icon('arrow')}</a><a class="play-link" href="#features"><span>${icon('arrow')}</span> See how it works</a></div>
-          <div class="hero-proof"><div class="proof-avatars"><i>AK</i><i>RS</i><i>NM</i><i>+</i></div><span><strong>One clear view</strong> for every busy business day</span></div>
+        <div class="hero-copy"><div class="eyebrow-pill"><i></i> Stock and daily accounts, together</div>
+          <h1>Stock sambhalo.<br><span>Hisaab, seedha.</span></h1>
+          <p>Products, purchases aur sales ka record ek hi workspace mein. Dekho kya stock mein hai, kya kam ho raha hai, aur aaj ka hisaab kahan khada hai.</p>
+          <div class="hero-actions"><a class="btn btn-lg" href="#/login">View your workspace ${icon('arrow')}</a><a class="play-link" href="#how-it-works"><span>${icon('arrow')}</span> See how it works</a></div>
+          <div class="hero-proof"><span><strong>One workspace</strong> for products, purchases and sales</span></div>
         </div>
         <div class="hero-art" aria-label="StockSetu inventory dashboard preview"><div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div>
-          <div class="preview-card preview-main"><div class="preview-head"><span class="preview-brand"><i class="brand-mark">${icon('mark')}</i> stocksetu</span><span class="preview-user">WO</span></div><div class="preview-greeting"><div><small>MONDAY, 12 OCTOBER</small><h3>Good morning, Workspace Owner <span>✦</span></h3></div><i>${icon('bell')}</i></div>
+          <div class="preview-card preview-main"><div class="preview-head"><span class="preview-brand"><i class="brand-mark">${icon('mark')}</i> stocksetu</span><span class="preview-user">VD</span></div><div class="preview-greeting"><div><small>SAMPLE WORKSPACE</small><h3>Stock and sales, at a glance</h3></div><i>${icon('bell')}</i></div>
             <div class="preview-stats"><div><small>Sales today</small><b>₹24,680</b><span class="positive">↗ 12.8%</span></div><div><small>Items in stock</small><b>1,284</b><span>Across 86 products</span></div><div><small>To collect</small><b>₹8,450</b><span>From 6 customers</span></div></div>
             <div class="preview-chart"><div class="preview-chart-title"><b>Sales overview</b><span>Last 7 days⌄</span></div><svg viewBox="0 0 420 130" preserveAspectRatio="none"><defs><linearGradient id="hero-fill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#98cc9d" stop-opacity=".45"/><stop offset="1" stop-color="#98cc9d" stop-opacity="0"/></linearGradient></defs><path d="M0 99 C40 93 45 72 85 81 S130 52 168 67 S217 38 251 54 S294 73 330 38 S375 52 420 11 V130 H0Z" fill="url(#hero-fill)"/><path d="M0 99 C40 93 45 72 85 81 S130 52 168 67 S217 38 251 54 S294 73 330 38 S375 52 420 11" fill="none" stroke="#2c7d53" stroke-width="3" stroke-linecap="round"/></svg><div class="preview-days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div></div>
             <div class="preview-stock"><div class="preview-chart-title"><b>Stock to watch</b><a href="#/login">View all ${icon('arrow')}</a></div><div><i class="mini-product">${icon('box')}</i><span><b>Sunflower oil 1L</b><small>12 bottles left</small></span><em>Low stock</em></div><div><i class="mini-product peach">${icon('box')}</i><span><b>Kraft packaging</b><small>4 bundles left</small></span><em>Low stock</em></div></div>
           </div><div class="float-chip chip-invoice"><i>${icon('receipt')}</i><span><b>Invoice ready</b><small>INV-1084 · ₹4,280</small></span><strong>✓</strong></div><div class="float-chip chip-alert"><i>${icon('bell')}</i><span><b>Restock reminder</b><small>2 products running low</small></span></div><div class="art-spark spark-one">✳</div><div class="art-spark spark-two">✦</div>
         </div>
       </div></section>
-      <section class="trust-strip"><div class="container trust-inner"><span>MADE FOR EVERYDAY BUSINESS</span><i></i><b>Retail shops</b><b>Wholesalers</b><b>Local brands</b><b>Growing teams</b></div></section>
+      <section class="trust-strip"><div class="container trust-inner"><span>EVERYDAY WORKFLOW</span><i></i><b>Products</b><b>Purchases</b><b>Sales &amp; invoices</b><b>Reports</b></div></section>
       <section class="features-section" id="features"><div class="container"><div class="section-heading reveal"><span class="eyebrow">Your whole shop, in sync</span><h2>Chhoti chhoti cheezein.<br><em>Ek bada clear picture.</em></h2><p>All the everyday tools to know what came in, what went out and what needs your attention next.</p></div>
         <div class="feature-grid">
           <article class="feature-card reveal"><i class="feature-icon green">${icon('box')}</i><h3>Inventory that updates itself</h3><p>See what’s available, what’s running low and every stock movement as it happens.</p><a href="#/login">Explore inventory ${icon('arrow')}</a></article>
@@ -243,7 +243,7 @@ function brandPageHome() {
           <article class="feature-card reveal"><i class="feature-icon mint">${icon('bell')}</i><h3>A little heads-up, right on time</h3><p>Low-stock reminders make it easier to plan your next purchase.</p><a href="#/login">Explore alerts ${icon('arrow')}</a></article>
         </div>
       </div></section>
-      <section class="story-section" id="how-it-works"><div class="container story-grid"><div class="story-copy reveal"><span class="eyebrow">Easy from day one</span><h2>One less thing<br>on your mind.</h2><p>Start with what you have. StockSetu keeps every next step connected, so your records make sense without slowing you down.</p><a class="btn" href="#/login">Take a look inside ${icon('arrow')}</a><div class="story-footnote">${icon('shield')} Your workspace is saved in this browser.</div></div>
+      <section class="story-section" id="how-it-works"><div class="container story-grid"><div class="story-copy reveal"><span class="eyebrow">Easy from day one</span><h2>One less thing<br>on your mind.</h2><p>Start with what you have. StockSetu keeps every next step connected, so your records make sense without slowing you down.</p><a class="btn" href="#/login">Take a look inside ${icon('arrow')}</a><div class="story-footnote">${icon('shield')} Your workspace keeps products, purchases and sales close at hand.</div></div>
         <div class="story-steps"><article class="story-step reveal"><span>01</span><div><i>${icon('tag')}</i><h3>Add your products</h3><p>Set names, prices and the quantity already on your shelves.</p></div></article><article class="story-step reveal"><span>02</span><div><i>${icon('receipt')}</i><h3>Record the day as it happens</h3><p>Track a sale, purchase or payment in just a few clicks.</p></div></article><article class="story-step reveal"><span>03</span><div><i>${icon('spark')}</i><h3>See what needs attention</h3><p>Get a clear view of sales, stock and what to restock next.</p></div></article></div>
       </div></section>
       <section class="why-section" id="why-stocksetu"><div class="container why-grid"><div class="why-image reveal"><div class="why-circle"></div><div class="why-note note-top"><i>${icon('check')}</i><span><b>Stock is in sync</b><small>Sale recorded just now</small></span></div><div class="why-note note-bottom"><i>${icon('chart')}</i><span><b>Your week at a glance</b><small>Simple, useful business insights</small></span></div><div class="why-doodle">✳</div></div><div class="why-copy reveal"><span class="eyebrow">Built around your day</span><h2>More clarity.<br><em>Less chasing.</em></h2><p>Your business deserves tools that feel straightforward. Keep the essentials close, find details fast and make your next decision with a little more confidence.</p><div class="why-points"><div>${icon('check')} Quick to learn, easy to use</div><div>${icon('check')} All your daily records together</div><div>${icon('check')} Designed to grow with your workflow</div></div></div></div></section>
@@ -262,11 +262,11 @@ function updateScrollProgress() {
 }
 
 function renderLogin() {
-  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Enter your details to open your workspace.</p><form id="login-form"><div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" placeholder="Your business email" autocomplete="email" required></div><div class="field"><label for="password">Password</label><div class="password-wrap"><input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required><button type="button" class="show-password" id="show-password">Show</button></div></div><div class="form-error" id="login-error" role="alert" hidden>Please enter a valid email and password to continue.</div><div class="login-meta"><label class="remember"><input type="checkbox" checked> Remember me</label><a class="text-btn" href="#" id="forgot-password">Forgot password?</a></div><button class="btn login-submit" type="submit">Continue to workspace ${icon('arrow')}</button></form><div class="login-demo"><strong>Workspace access:</strong> This local capstone preview accepts any valid email and password. Passwords are not stored.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#" id="create-account">Set up a workspace</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
+  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Enter your details to open your workspace.</p><form id="login-form"><div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" placeholder="Your business email" autocomplete="email" required></div><div class="field"><label for="password">Password</label><div class="password-wrap"><input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required><button type="button" class="show-password" id="show-password">Show</button></div></div><div class="form-error" id="login-error" role="alert" hidden>Please enter a valid email and password to continue.</div><div class="login-meta"><label class="remember"><input type="checkbox" checked> Remember me</label><a class="text-btn" href="#" id="forgot-password">Forgot password?</a></div><button class="btn login-submit" type="submit">Continue to workspace ${icon('arrow')}</button></form><div class="login-demo"><strong>Workspace access:</strong> Use the email and password you registered with.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#/register" id="create-account">Create an account</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
   document.querySelector('#show-password').addEventListener('click', event => { const input = document.querySelector('#password'); const show = input.type === 'password'; input.type = show ? 'text' : 'password'; event.currentTarget.textContent = show ? 'Hide' : 'Show'; });
   document.querySelector('#forgot-password').addEventListener('click', event => { event.preventDefault(); toast('Password recovery is not connected in this preview yet.'); });
-  document.querySelector('#create-account').addEventListener('click', event => { event.preventDefault(); document.querySelector('#email').focus(); toast('Enter your details to open the local workspace.'); });
  
+
 document.querySelector('#login-form').addEventListener('submit', async event => {
   event.preventDefault();
 
@@ -307,8 +307,52 @@ document.querySelector('#login-form').addEventListener('submit', async event => 
     errorBox.style.display = 'block';
   }
 });
-
 }
+
+function renderRegister() {
+  root.innerHTML = `<main class="login-page register-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">A clear start</span><h1>One place for <em>your business.</em></h1><p>Create your StockSetu account to keep your stock and daily records together.</p><div class="login-aside-points"><span>${icon('check')} Your own login</span><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Business records in one place</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Get started</span><h2>Create your account</h2><p class="login-subtitle">Use an email and a password with at least 8 characters.</p><form id="register-form"><div class="field"><label for="register-email">Email address</label><input id="register-email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label for="register-password">Password</label><input id="register-password" name="password" type="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required></div><div class="field"><label for="register-confirm-password">Confirm password</label><input id="register-confirm-password" name="confirmPassword" type="password" placeholder="Enter the password again" autocomplete="new-password" minlength="8" required></div><div class="form-error" id="register-error" role="alert" hidden></div><button class="btn login-submit" type="submit">Create account ${icon('arrow')}</button></form><div class="register-success" id="register-success" role="status" hidden><strong>Your account is ready.</strong><span>Log in with the email and password you just registered.</span><a class="btn" href="#/login">Go to login ${icon('arrow')}</a></div><div class="login-bottom">Already have an account? <a class="text-btn" href="#/login">Log in</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
+  document.querySelector('#register-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const email = String(values.get('email') || '').trim();
+    const password = String(values.get('password') || '');
+    const confirmation = String(values.get('confirmPassword') || '');
+    const errorBox = document.querySelector('#register-error');
+    const submit = form.querySelector('[type="submit"]');
+    errorBox.hidden = true;
+    if (password.length < 8) {
+      errorBox.textContent = 'Password must be at least 8 characters.';
+      errorBox.hidden = false;
+      return;
+    }
+    if (password !== confirmation) {
+      errorBox.textContent = 'The passwords do not match.';
+      errorBox.hidden = false;
+      return;
+    }
+    submit.disabled = true;
+    submit.textContent = 'Creating account…';
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || `Registration failed (${response.status}).`);
+      form.hidden = true;
+      document.querySelector('#register-success').hidden = false;
+    } catch (error) {
+      errorBox.textContent = error.message || 'Could not connect to the backend. Make sure it is running and try again.';
+      errorBox.hidden = false;
+      submit.disabled = false;
+      submit.innerHTML = `Create account ${icon('arrow')}`;
+    }
+  });
+}
+
+
 
 const navGroups = [
   { label: 'Workspace', items: [ ['Overview','grid'], ['Inventory','box'], ['Stock history','clock'], ['Sales & invoices','receipt'], ['Purchases','cart'] ] },
@@ -625,12 +669,12 @@ function route(){
     return;
   }
   const path=routeHash||'/';
-  document.documentElement.dataset.theme = path.startsWith('/dashboard') || path === '/login' ? (localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light') : 'light';
+  document.documentElement.dataset.theme = path.startsWith('/dashboard') || path === '/login' || path === '/register' ? (localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light') : 'light';
   if(path==='/dashboard'){
     if(!localStorage.getItem('stocksetu-token')){location.hash='#/login';return;}
     activePage='Overview';renderDashboard();
   loadProductsFromBackend();  
-  }else if(path==='/login')renderLogin();else brandPageHome();
+  }else if(path==='/login')renderLogin();else if(path==='/register')renderRegister();else brandPageHome();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 window.addEventListener('hashchange',route);
