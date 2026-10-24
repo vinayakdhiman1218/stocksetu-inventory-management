@@ -112,6 +112,91 @@ function money(value) { return `₹${Number(value || 0).toLocaleString('en-IN', 
 function dateLabel(value) { return new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
 function initials(name = 'Business owner') { return name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase(); }
 function getUser() { return localStorage.getItem('stocksetu-user') || 'Workspace Owner'; }
+
+const API_BASE_URL = 'http://127.0.0.1:8000';
+
+async function apiRequest(path, options = {}) {
+  const token = localStorage.getItem('stocksetu-token');
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    }
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      result.detail || `Request failed (${response.status})`
+    );
+  }
+
+  return result;
+}
+
+async function loadProductsFromBackend() {
+  try {
+    const products = await apiRequest('/products');
+
+    state.products = products.map(product => ({
+      id: String(product.id),
+      name: product.name,
+      sku: product.sku || '—',
+      category: product.category || 'Uncategorized',
+      quantity: Number(product.quantity ?? 0),
+      unit: product.unit || 'pcs',
+      cost: Number(product.cost_price ?? 0),
+      price: Number(product.selling_price ?? 0),
+      supplier: product.supplier || '',
+      reorder: Number(product.min_stock ?? 5)
+    }));
+
+    if (location.hash === '#/dashboard') {
+      renderDashboard();
+    }
+  } catch (error) {
+    toast(`Could not load products: ${error.message}`);
+  }
+}
+
+
+
+const API_BASE = 'http://127.0.0.1:8000';
+
+async function apiRequest(path, options = {}) {
+  const token = localStorage.getItem('stocksetu-token');
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+
+  const text = await response.text();
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      (data && data.detail) || `Request failed: ${response.status}`
+    );
+  }
+
+  return data;
+}
+
 function toast(message) {
   document.querySelector('.toast')?.remove(); const node = document.createElement('div'); node.className = 'toast'; node.innerHTML = `${icon('check')}<span>${escapeHTML(message)}</span>`;
   document.body.append(node); clearTimeout(toastTimer); toastTimer = setTimeout(() => node.remove(), 3200);
@@ -181,11 +266,48 @@ function renderLogin() {
   document.querySelector('#show-password').addEventListener('click', event => { const input = document.querySelector('#password'); const show = input.type === 'password'; input.type = show ? 'text' : 'password'; event.currentTarget.textContent = show ? 'Hide' : 'Show'; });
   document.querySelector('#forgot-password').addEventListener('click', event => { event.preventDefault(); toast('Password recovery is not connected in this preview yet.'); });
   document.querySelector('#create-account').addEventListener('click', event => { event.preventDefault(); document.querySelector('#email').focus(); toast('Enter your details to open the local workspace.'); });
-  document.querySelector('#login-form').addEventListener('submit', event => {
-    event.preventDefault(); const form = new FormData(event.currentTarget); const email = String(form.get('email') || '').trim(); const password = String(form.get('password') || '');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password) { document.querySelector('#login-error').style.display = 'block'; return; }
-    localStorage.setItem('stocksetu-user', state.settings.owner || 'Workspace Owner'); location.hash = '#/dashboard';
-  });
+ 
+document.querySelector('#login-form').addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const form = new FormData(event.currentTarget);
+  const email = String(form.get('email') || '').trim();
+  const password = String(form.get('password') || '');
+  const errorBox = document.querySelector('#login-error');
+
+  errorBox.hidden = true;
+
+  try {
+    const response = await fetch('http://127.0.0.1:8000/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || 'Login failed. Check your credentials.');
+    }
+
+    if (!data.access_token) {
+      throw new Error('The backend did not return an access token.');
+    }
+
+    localStorage.setItem('stocksetu-token', data.access_token);
+    localStorage.setItem('stocksetu-user', email);
+
+    location.hash = '#/dashboard';
+  } catch (error) {
+    errorBox.textContent =
+      error.message || 'Could not connect to the backend.';
+    errorBox.hidden = false;
+    errorBox.style.display = 'block';
+  }
+});
+
 }
 
 const navGroups = [
@@ -254,7 +376,7 @@ function filteredProducts() {
 }
 function productRow(item) {
   const status = productStatus(item);
-  return `<tr><td><span class="table-product"><i class="stock-icon">${icon('box')}</i><span>${escapeHTML(item.name)}<small>${escapeHTML(item.category)}</small></span></span></td><td><span class="sku-tag">${escapeHTML(item.sku)}</span></td><td><b class="qty-value">${Number(item.quantity).toLocaleString('en-IN')}</b> <span class="muted-small">${escapeHTML(item.unit)}</span><small class="reorder-sub">Reorder at ${item.reorder}</small></td><td>${money(item.cost)}</td><td><b class="dark-value">${money(item.price)}</b></td><td><span class="badge ${status.className}">${status.text}</span></td><td><button class="icon-btn row-action" data-action="edit-product" data-id="${escapeHTML(item.id)}" aria-label="Edit ${escapeHTML(item.name)}">${icon('pencil')}</button></td></tr>`;
+  return `<tr><td><span class="table-product"><i class="stock-icon">${icon('box')}</i><span>${escapeHTML(item.name)}<small>${escapeHTML(item.category)}</small></span></span></td><td><span class="sku-tag">${escapeHTML(item.sku)}</span></td><td><b class="qty-value">${Number(item.quantity).toLocaleString('en-IN')}</b> <span class="muted-small">${escapeHTML(item.unit)}</span><small class="reorder-sub">Reorder at ${item.reorder}</small></td><td>${money(item.cost)}</td><td><b class="dark-value">${money(item.price)}</b></td><td><span class="badge ${status.className}">${status.text}</span></td><td><button class="icon-btn row-action" data-action="edit-product" data-id="${escapeHTML(item.id)}" aria-label="Edit ${escapeHTML(item.name)}">${icon('pencil')}</button><button class="icon-btn row-action" data-action="delete-product" data-id="${escapeHTML(item.id)}" aria-label="Delete ${escapeHTML(item.name)}">${icon('trash')}</button></td></tr>`;
 }
 function salesTable(items, full = true) {
   return `<div class="table-wrap"><table><thead><tr><th>INVOICE</th><th>CUSTOMER</th><th>DATE</th><th>AMOUNT</th><th>PAYMENT</th>${full?'<th></th>':''}</tr></thead><tbody>${items.map(item => `<tr><td><b>${escapeHTML(item.id)}</b></td><td>${escapeHTML(item.customer)}</td><td>${dateLabel(item.date)}</td><td><b class="dark-value">${money(item.amount)}</b></td><td><span class="badge ${item.payment==='Due'?'low':''}">${escapeHTML(item.payment)}</span></td>${full?`<td><button class="icon-btn row-action" data-action="view-invoice" data-id="${escapeHTML(item.id)}" aria-label="View invoice">${icon('eye')}</button></td>`:''}</tr>`).join('') || `<tr><td class="table-empty" colspan="${full?6:5}">No sales yet. Record your first sale to see it here.</td></tr>`}</tbody></table></div>`;
@@ -319,7 +441,28 @@ function handleAction(button) {
   }
   if(action==='add-product')openProductModal();
   if(action==='edit-product')openProductModal(state.products.find(p=>p.id===id));
-  if(action==='new-sale')openSaleModal();
+  
+if(action==='delete-product'){
+  const product = state.products.find(p => p.id === id);
+
+  if(product && confirm(`Are you sure you want to delete "${product.name}"?`)){
+    (async () => {
+      try {
+        await apiRequest(`/products/${id}`, {
+          method: 'DELETE'
+        });
+
+        state.products = state.products.filter(p => p.id !== id);
+        saveStore('products');
+        renderDashboard();
+        toast('Product deleted successfully.');
+      } catch(error) {
+        toast(`Could not delete product: ${error.message}`);
+      }
+    })();
+  }
+}
+
   if(action==='new-return')openReturnModal();
   if(action==='new-purchase')openPurchaseModal();
   if(action==='stock-adjust')openAdjustmentModal();
@@ -341,12 +484,57 @@ function handleAction(button) {
   if(action==='menu'){document.querySelector('.sidebar').classList.add('mobile-open');document.querySelector('.mobile-backdrop').classList.add('show');}
   if(action==='close-menu'){document.querySelector('.sidebar').classList.remove('mobile-open');document.querySelector('.mobile-backdrop').classList.remove('show');}
 }
-function handleForm(event) {
+ 
+async function handleForm(event) {
   const form=event.currentTarget; const type=form.dataset.form; if(!type)return; event.preventDefault(); const data=Object.fromEntries(new FormData(form));
   if(type==='product'){
     const existing=state.products.find(p=>p.id===data.id); const sku=String(data.sku).trim();
     if(state.products.some(p=>p.sku.toLowerCase()===sku.toLowerCase()&&p.id!==data.id)){form.querySelector('.form-error').hidden=false;return;}
     const value={id:data.id||crypto.randomUUID(),name:String(data.name).trim(),sku,category:String(data.category).trim(),quantity:Number(data.quantity),unit:data.unit,cost:Number(data.cost),price:Number(data.price),supplier:String(data.supplier),reorder:Number(data.reorder)};
+    
+    if (!existing) {
+      try {
+        const result = await apiRequest('/products', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: value.name,
+            category: value.category,
+            quantity: value.quantity,
+            cost_price: value.cost,
+            selling_price: value.price,
+            min_stock: value.reorder
+          })
+        });
+
+
+        value.id = String(result.product_id);
+      } catch (error) {
+        toast(`Could not save product: ${error.message}`);
+        return;
+      }
+    }
+    
+    else {
+      try {
+        await apiRequest(`/products/${existing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: value.name,
+            category: value.category,
+            quantity: value.quantity,
+            cost_price: value.cost,
+            selling_price: value.price,
+            min_stock: value.reorder
+          })
+        });
+      } catch (error) {
+        toast(`Could not update product: ${error.message}`);
+        return;
+      }
+    }
+
+
+
     const oldQuantity=existing?Number(existing.quantity):0;if(existing)Object.assign(existing,value);else state.products.unshift(value);
     const delta=value.quantity-oldQuantity;if(delta!==0){const reference=existing?`ADJ-${String(state.movements.length+24).padStart(4,'0')}`:`OPEN-${value.sku}`;state.movements.unshift({id:nextMovementId(),product:value.name,sku:value.sku,type:existing?'Stock adjustment':'Opening stock',delta,unit:value.unit,reference,date:daysAgo(0),note:existing?'Quantity corrected from product editor':'Initial quantity'});state.activity.unshift({text:existing?'Stock adjusted':'Product added',detail:`${value.name} · ${delta>0?'+':''}${delta} ${value.unit}`,time:'Just now',icon:'box'});}
     else if(!existing)state.activity.unshift({text:'Product added',detail:`${value.name} · ${value.quantity} ${value.unit}`,time:'Just now',icon:'box'});
@@ -439,8 +627,9 @@ function route(){
   const path=routeHash||'/';
   document.documentElement.dataset.theme = path.startsWith('/dashboard') || path === '/login' ? (localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light') : 'light';
   if(path==='/dashboard'){
-    if(!localStorage.getItem('stocksetu-user')){location.hash='#/login';return;}
+    if(!localStorage.getItem('stocksetu-token')){location.hash='#/login';return;}
     activePage='Overview';renderDashboard();
+  loadProductsFromBackend();  
   }else if(path==='/login')renderLogin();else brandPageHome();
   window.scrollTo({top:0,behavior:'smooth'});
 }
