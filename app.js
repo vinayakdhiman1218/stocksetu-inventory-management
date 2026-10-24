@@ -93,6 +93,7 @@ let statusFilter = 'all';
 let chartPeriod = 7;
 let toastTimer;
 let revealObserver;
+let landingCameraController;
 
 function daysAgo(days) {
   const date = new Date(); date.setDate(date.getDate() - days); return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
@@ -212,48 +213,93 @@ function runReveal(scope = document) {
 }
 function brandPageHome() {
   root.innerHTML = `
-    <div class="scroll-progress" aria-hidden="true"></div><header class="site-header"><div class="container nav">${brand()}
-      <nav class="nav-links" id="site-nav"><a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#why-stocksetu">Why StockSetu</a></nav>
-      <div class="nav-actions"><a class="nav-login" href="#/login">Log in</a><a class="btn btn-sm" href="#/login">Open workspace ${icon('arrow')}</a><button class="menu-toggle" id="menu-toggle" aria-label="Open navigation">${icon('menu')}</button></div>
+    <div class="scroll-progress" aria-hidden="true"></div>
+    <header class="launch-nav"><div class="launch-nav-inner">${brand()}
+      <nav class="nav-links" id="site-nav" aria-label="Main navigation"><a href="#capabilities">What you can do</a><a href="#workflow">How it works</a><a href="#why-stocksetu">Why StockSetu</a></nav>
+      <div class="launch-actions"><button class="launch-theme" id="home-theme-toggle" type="button" aria-label="Switch to ${document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'} mode" aria-pressed="${document.documentElement.dataset.theme === 'dark'}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}</button><a class="launch-login" href="#/login">Log in</a><a class="launch-cta" href="#/register">Get started ${icon('arrow')}</a><button class="menu-toggle" id="menu-toggle" aria-label="Open navigation">${icon('menu')}</button></div>
     </div></header>
-    <main>
-      <section class="hero"><div class="hero-glow hero-glow-one"></div><div class="hero-glow hero-glow-two"></div><div class="container hero-grid">
-        <div class="hero-copy"><div class="eyebrow-pill"><i></i> Stock and daily accounts, together</div>
-          <h1>Stock sambhalo.<br><span>Hisaab, seedha.</span></h1>
-          <p>Products, purchases aur sales ka record ek hi workspace mein. Dekho kya stock mein hai, kya kam ho raha hai, aur aaj ka hisaab kahan khada hai.</p>
-          <div class="hero-actions"><a class="btn btn-lg" href="#/login">View your workspace ${icon('arrow')}</a><a class="play-link" href="#how-it-works"><span>${icon('arrow')}</span> See how it works</a></div>
-          <div class="hero-proof"><span><strong>One workspace</strong> for products, purchases and sales</span></div>
+    <main class="launch-page">
+      <section class="hero launch-hero"><div class="launch-grain" aria-hidden="true"></div><div class="launch-hero-inner container">
+        <div class="launch-copy"><div class="launch-kicker"><i></i> A clearer way to run your shop</div>
+          <h1>Know your stock.<br><em>Own your day.</em></h1>
+          <p>Purchases, sales, invoices and stock in one calm workspace. See what needs attention and get back to running your business.</p>
+          <div class="launch-hero-actions"><a class="launch-primary" href="#/register">Create your workspace ${icon('arrow')}</a><a class="launch-secondary" href="#capabilities">Explore StockSetu <span>↓</span></a></div>
+          <div class="launch-caption"><span class="launch-caption-mark">${icon('check')}</span><span>Set up in minutes <i>·</i> Keep your daily records together</span></div>
         </div>
-        <div class="hero-art" aria-label="StockSetu inventory dashboard preview"><div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div>
-          <div class="preview-card preview-main"><div class="preview-head"><span class="preview-brand"><i class="brand-mark">${icon('mark')}</i> stocksetu</span><span class="preview-user">VD</span></div><div class="preview-greeting"><div><small>SAMPLE WORKSPACE</small><h3>Stock and sales, at a glance</h3></div><i>${icon('bell')}</i></div>
-            <div class="preview-stats"><div><small>Sales today</small><b>₹24,680</b><span class="positive">↗ 12.8%</span></div><div><small>Items in stock</small><b>1,284</b><span>Across 86 products</span></div><div><small>To collect</small><b>₹8,450</b><span>From 6 customers</span></div></div>
-            <div class="preview-chart"><div class="preview-chart-title"><b>Sales overview</b><span>Last 7 days⌄</span></div><svg viewBox="0 0 420 130" preserveAspectRatio="none"><defs><linearGradient id="hero-fill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#98cc9d" stop-opacity=".45"/><stop offset="1" stop-color="#98cc9d" stop-opacity="0"/></linearGradient></defs><path d="M0 99 C40 93 45 72 85 81 S130 52 168 67 S217 38 251 54 S294 73 330 38 S375 52 420 11 V130 H0Z" fill="url(#hero-fill)"/><path d="M0 99 C40 93 45 72 85 81 S130 52 168 67 S217 38 251 54 S294 73 330 38 S375 52 420 11" fill="none" stroke="#2c7d53" stroke-width="3" stroke-linecap="round"/></svg><div class="preview-days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div></div>
-            <div class="preview-stock"><div class="preview-chart-title"><b>Stock to watch</b><a href="#/login">View all ${icon('arrow')}</a></div><div><i class="mini-product">${icon('box')}</i><span><b>Sunflower oil 1L</b><small>12 bottles left</small></span><em>Low stock</em></div><div><i class="mini-product peach">${icon('box')}</i><span><b>Kraft packaging</b><small>4 bundles left</small></span><em>Low stock</em></div></div>
-          </div><div class="float-chip chip-invoice"><i>${icon('receipt')}</i><span><b>Invoice ready</b><small>INV-1084 · ₹4,280</small></span><strong>✓</strong></div><div class="float-chip chip-alert"><i>${icon('bell')}</i><span><b>Restock reminder</b><small>2 products running low</small></span></div><div class="art-spark spark-one">✳</div><div class="art-spark spark-two">✦</div>
+        <div class="hero-art launch-scene" aria-label="Illustration of the StockSetu business dashboard">
+          <div class="launch-halo" aria-hidden="true"></div><div class="launch-orbit launch-orbit-one" aria-hidden="true"></div><div class="launch-orbit launch-orbit-two" aria-hidden="true"></div>
+          <div class="launch-window"><div class="launch-window-top"><div class="launch-window-brand"><i>${icon('mark')}</i><b>stocksetu</b></div><div class="launch-window-path"><span>Workspace</span>${icon('chevron')}<b>Overview</b></div><div class="launch-window-avatar">${initials('Vinayak')}</div></div>
+            <div class="launch-window-body"><div class="launch-dash-heading"><div><small>${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long' }).toUpperCase()}</small><h2>Good morning, Vinayak <span>✳</span></h2><p>Here’s your business at a glance.</p></div><a href="#/login" class="launch-date">This week ${icon('chevron')}</a></div>
+              <div class="launch-metrics"><article><span>Sales today</span><strong>₹24,680</strong><small class="metric-up">↗ 12.8% <i>this week</i></small><div class="metric-spark spark-sales"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article><article><span>Products in stock</span><strong>1,284</strong><small>Across 86 products</small><div class="metric-squares"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article><article><span>Payments due</span><strong>₹8,450</strong><small>From 6 customers</small><div class="metric-dots"><i></i><i></i><i></i><i></i><i></i><i></i></div></article></div>
+              <div class="launch-dash-lower"><div class="launch-sales-panel"><div class="launch-panel-head"><span><b>Sales overview</b><small>How your week is moving</small></span><a href="#/login">Last 7 days ${icon('chevron')}</a></div><div class="launch-chart"><div class="chart-y"><span>₹30k</span><span>₹20k</span><span>₹10k</span></div><div class="chart-lines"><i></i><i></i><i></i><svg viewBox="0 0 440 116" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="launch-chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#70c69b" stop-opacity=".34"/><stop offset="1" stop-color="#70c69b" stop-opacity="0"/></linearGradient></defs><path class="launch-area" d="M0 91 C34 88 42 67 79 74 S131 54 161 64 S213 31 248 49 S298 70 333 38 S390 52 440 15 V116 H0Z"/><path class="launch-line" d="M0 91 C34 88 42 67 79 74 S131 54 161 64 S213 31 248 49 S298 70 333 38 S390 52 440 15"/></svg><div class="chart-x"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div></div></div></div>
+                <div class="launch-stock-panel"><div class="launch-panel-head"><span><b>Needs a look</b><small>2 items running low</small></span><i class="launch-notice">2</i></div><div class="launch-stock-row"><i class="stock-glyph">${icon('box')}</i><span><b>Sunflower oil, 1L</b><small>12 bottles left</small></span><em>Restock</em></div><div class="launch-stock-row"><i class="stock-glyph stock-glyph-peach">${icon('box')}</i><span><b>Kraft packaging</b><small>4 bundles left</small></span><em>Restock</em></div></div></div>
+              <div class="launch-window-foot"><span><i></i> Workspace preview</span><span>StockSetu · Inventory and daily accounts</span></div>
+            </div>
+          </div><div class="launch-float launch-float-left"><i>${icon('receipt')}</i><span><b>Invoice created</b><small>Ready to share</small></span><strong>✓</strong></div><div class="launch-float launch-float-right"><i>${icon('bell')}</i><span><b>Stock reminder</b><small>2 items need attention</small></span></div>
         </div>
-      </div></section>
-      <section class="trust-strip"><div class="container trust-inner"><span>EVERYDAY WORKFLOW</span><i></i><b>Products</b><b>Purchases</b><b>Sales &amp; invoices</b><b>Reports</b></div></section>
-      <section class="features-section" id="features"><div class="container"><div class="section-heading reveal"><span class="eyebrow">Your whole shop, in sync</span><h2>Chhoti chhoti cheezein.<br><em>Ek bada clear picture.</em></h2><p>All the everyday tools to know what came in, what went out and what needs your attention next.</p></div>
-        <div class="feature-grid">
-          <article class="feature-card reveal"><i class="feature-icon green">${icon('box')}</i><h3>Inventory that updates itself</h3><p>See what’s available, what’s running low and every stock movement as it happens.</p><a href="#/login">Explore inventory ${icon('arrow')}</a></article>
-          <article class="feature-card reveal"><i class="feature-icon yellow">${icon('receipt')}</i><h3>Billing without the busywork</h3><p>Create a clear invoice, record a payment and keep each sale easy to find.</p><a href="#/login">Explore billing ${icon('arrow')}</a></article>
-          <article class="feature-card reveal"><i class="feature-icon lilac">${icon('truck')}</i><h3>Purchases, all accounted for</h3><p>Connect supplier purchases to stock so quantities stay up to date.</p><a href="#/login">Explore purchases ${icon('arrow')}</a></article>
-          <article class="feature-card reveal"><i class="feature-icon peach">${icon('users')}</i><h3>Customers you know by name</h3><p>Keep contacts, invoices and pending balances together in one place.</p><a href="#/login">Explore customers ${icon('arrow')}</a></article>
-          <article class="feature-card reveal"><i class="feature-icon blue">${icon('chart')}</i><h3>Reports that make sense</h3><p>Spot sales patterns, top sellers and the stock that needs a second look.</p><a href="#/login">Explore reports ${icon('arrow')}</a></article>
-          <article class="feature-card reveal"><i class="feature-icon mint">${icon('bell')}</i><h3>A little heads-up, right on time</h3><p>Low-stock reminders make it easier to plan your next purchase.</p><a href="#/login">Explore alerts ${icon('arrow')}</a></article>
-        </div>
-      </div></section>
-      <section class="story-section" id="how-it-works"><div class="container story-grid"><div class="story-copy reveal"><span class="eyebrow">Easy from day one</span><h2>One less thing<br>on your mind.</h2><p>Start with what you have. StockSetu keeps every next step connected, so your records make sense without slowing you down.</p><a class="btn" href="#/login">Take a look inside ${icon('arrow')}</a><div class="story-footnote">${icon('shield')} Your workspace keeps products, purchases and sales close at hand.</div></div>
-        <div class="story-steps"><article class="story-step reveal"><span>01</span><div><i>${icon('tag')}</i><h3>Add your products</h3><p>Set names, prices and the quantity already on your shelves.</p></div></article><article class="story-step reveal"><span>02</span><div><i>${icon('receipt')}</i><h3>Record the day as it happens</h3><p>Track a sale, purchase or payment in just a few clicks.</p></div></article><article class="story-step reveal"><span>03</span><div><i>${icon('spark')}</i><h3>See what needs attention</h3><p>Get a clear view of sales, stock and what to restock next.</p></div></article></div>
-      </div></section>
-      <section class="why-section" id="why-stocksetu"><div class="container why-grid"><div class="why-image reveal"><div class="why-circle"></div><div class="why-note note-top"><i>${icon('check')}</i><span><b>Stock is in sync</b><small>Sale recorded just now</small></span></div><div class="why-note note-bottom"><i>${icon('chart')}</i><span><b>Your week at a glance</b><small>Simple, useful business insights</small></span></div><div class="why-doodle">✳</div></div><div class="why-copy reveal"><span class="eyebrow">Built around your day</span><h2>More clarity.<br><em>Less chasing.</em></h2><p>Your business deserves tools that feel straightforward. Keep the essentials close, find details fast and make your next decision with a little more confidence.</p><div class="why-points"><div>${icon('check')} Quick to learn, easy to use</div><div>${icon('check')} All your daily records together</div><div>${icon('check')} Designed to grow with your workflow</div></div></div></div></section>
-      <section class="final-cta"><div class="container"><div class="cta-box reveal"><div><span class="eyebrow">Your next clear business day</span><h2>Ready to get your hisaab in order?</h2><p>Bring your stock and daily accounts into one clear workspace.</p></div><a class="btn btn-lime btn-lg" href="#/login">Open StockSetu ${icon('arrow')}</a><div class="cta-orb"></div></div></div></section>
-    </main><footer class="site-footer"><div class="container footer-inner"><div>${brand()}<span>Stock sambhalo. Hisab saaf rakho.</span></div><nav><a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#/login">Log in</a></nav><small>© 2026 StockSetu · Inventory and billing for everyday business</small></div></footer>`;
+      </div><div class="launch-scroll-cue"><span></span> SCROLL TO EXPLORE</div></section>
+      <section class="launch-capabilities" id="capabilities"><div class="container"><div class="launch-section-intro reveal"><span class="launch-overline">One workspace, all in sync</span><h2>Everything your shop needs.<br><em>Nothing in your way.</em></h2><p>Small daily tasks add up. Keep the moving parts connected and easy to find.</p></div>
+        <div class="launch-bento"><article class="launch-bento-card launch-inventory reveal"><div class="launch-card-top"><span class="launch-icon mint">${icon('box')}</span><span class="launch-index">01 / INVENTORY</span></div><h3>Know what’s on the shelf.</h3><p>See quantities, prices and low-stock items without digging through old notes.</p><div class="launch-mini-list"><div><i class="launch-product-dot green-dot"></i><span><b>Everyday essentials</b><small>84 products tracked</small></span><strong>In stock</strong></div><div><i class="launch-product-dot amber-dot"></i><span><b>Needs a restock</b><small>2 items below threshold</small></span><strong class="attention">Take a look</strong></div><div class="launch-list-meter"><i></i></div></div></article>
+          <article class="launch-bento-card launch-billing reveal"><div class="launch-card-top"><span class="launch-icon peach">${icon('receipt')}</span><span class="launch-index">02 / SALES</span></div><h3>Billing that stays tidy.</h3><p>Create an invoice, record payments and find the details later.</p><div class="launch-invoice-art"><div class="invoice-paper"><div class="invoice-paper-top"><i>${icon('mark')}</i><span>INVOICE · 1084</span></div><div class="invoice-lines"><i></i><i></i><i></i></div><div class="invoice-paper-total"><span>Total</span><b>₹4,280</b></div><div class="invoice-stamp">PAID</div></div></div></article>
+          <article class="launch-bento-card launch-purchases reveal"><div class="launch-card-top"><span class="launch-icon lavender">${icon('truck')}</span><span class="launch-index">03 / PURCHASES</span></div><h3>Purchases flow into stock.</h3><p>Keep supplier orders and incoming quantities connected to your inventory.</p><div class="launch-flow"><span>Supplier</span><i>${icon('arrow')}</i><span>Purchase</span><i>${icon('arrow')}</i><span>Stock</span></div></article>
+          <article class="launch-bento-card launch-insights reveal"><div class="launch-card-top"><span class="launch-icon blue">${icon('chart')}</span><span class="launch-index">04 / REPORTS</span></div><h3>A clearer view of the day.</h3><p>Understand sales, pending balances and products that need attention.</p><div class="launch-insight-bars"><i style="--bar:35%"></i><i style="--bar:51%"></i><i style="--bar:42%"></i><i style="--bar:67%"></i><i style="--bar:58%"></i><i style="--bar:82%"></i><i style="--bar:72%"></i><i style="--bar:100%"></i><i style="--bar:79%"></i><i style="--bar:92%"></i></div><div class="insight-baseline"><span>Mon</span><span>Today</span></div></article>
+        </div></div></section>
+      <section class="launch-workflow" id="workflow"><div class="container launch-workflow-grid"><div class="launch-workflow-copy reveal"><span class="launch-overline">Simple from the first day</span><h2>Start with what you have.<br><em>Grow from there.</em></h2><p>Add your products, record the day as it happens, and use one clear view to decide what comes next.</p><a class="launch-text-link" href="#/register">Set up your workspace ${icon('arrow')}</a></div><div class="launch-steps"><article class="launch-step reveal"><span>01</span><i>${icon('tag')}</i><div><h3>Add your products</h3><p>Bring in names, prices and what’s already on your shelves.</p></div><b>→</b></article><article class="launch-step reveal"><span>02</span><i>${icon('receipt')}</i><div><h3>Record sales and purchases</h3><p>Keep stock and daily transactions moving together.</p></div><b>→</b></article><article class="launch-step reveal"><span>03</span><i>${icon('spark')}</i><div><h3>See what needs attention</h3><p>Check today’s sales, balances and restock reminders.</p></div><b>✓</b></article></div></div></section>
+      <section class="launch-why" id="why-stocksetu"><div class="container launch-why-card reveal"><div class="launch-why-orb" aria-hidden="true"><span>${icon('mark')}</span><i class="why-ring ring-a"></i><i class="why-ring ring-b"></i><i class="why-ring ring-c"></i></div><div class="launch-why-copy"><span class="launch-overline">Made for everyday business</span><h2>Less searching.<br><em>More certainty.</em></h2><p>StockSetu brings the important details closer, so your records are easier to keep up with and easier to trust.</p><div class="launch-why-points"><span>${icon('check')} A clear home for daily records</span><span>${icon('check')} Helpful stock reminders</span><span>${icon('check')} Your business, at a glance</span></div></div><div class="launch-why-glass">${icon('check')}<span><b>Everything accounted for</b><small>Products · Purchases · Sales</small></span></div></div></section>
+      <section class="launch-final"><div class="container"><div class="launch-final-card reveal"><div><span class="launch-overline">Your business, a little clearer</span><h2>Make space for the work<br>that moves you forward.</h2><p>Bring your products, purchases and sales into one workspace.</p></div><a class="launch-primary" href="#/register">Create your workspace ${icon('arrow')}</a><div class="launch-final-glow" aria-hidden="true"></div></div></div></section>
+    </main>
+    <footer class="launch-footer"><div class="container launch-footer-inner"><div>${brand()}<span>Stock sambhalo. Hisaab saaf rakho.</span></div><nav><a href="#capabilities">Features</a><a href="#workflow">How it works</a><a href="#/login">Log in</a><a href="#/register">Create account</a></nav><small>© 2026 StockSetu · Inventory and billing for everyday business</small></div></footer>`;
   const nav = document.querySelector('#site-nav');
   document.querySelector('#menu-toggle')?.addEventListener('click', () => nav.classList.toggle('open'));
   nav.querySelectorAll('a').forEach(link => link.addEventListener('click', () => nav.classList.remove('open')));
+  document.querySelector('#home-theme-toggle')?.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem('stocksetu-theme', next);
+    document.querySelector('#home-theme-toggle').innerHTML = icon(next === 'dark' ? 'sun' : 'moon');
+    document.querySelector('#home-theme-toggle').setAttribute('aria-label', `Switch to ${next === 'dark' ? 'light' : 'dark'} mode`);
+    document.querySelector('#home-theme-toggle').setAttribute('aria-pressed', String(next === 'dark'));
+  });
   window.addEventListener('scroll', updateScrollProgress, { passive: true });
+  initLandingCamera();
   runReveal();
+}
+function initLandingCamera() {
+  const hero = document.querySelector('.hero');
+  const art = hero?.querySelector('.hero-art');
+  landingCameraController?.abort();
+  if (!hero || !art || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  landingCameraController = new AbortController();
+  const { signal } = landingCameraController;
+
+  const finePointer = window.matchMedia('(pointer: fine)').matches;
+  let frame = 0;
+  let pointerX = 0;
+  let pointerY = 0;
+  const paint = () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      const rect = hero.getBoundingClientRect();
+      const scrollProgress = Math.max(0, Math.min(1, (window.innerHeight - rect.top) / (window.innerHeight + rect.height)));
+      const scrollY = (scrollProgress - .5) * 12;
+      art.style.setProperty('--camera-x', `${pointerX * -9}px`);
+      art.style.setProperty('--camera-y', `${pointerY * -7 + scrollY}px`);
+      art.style.setProperty('--camera-rotate-x', `${pointerY * -1.3}deg`);
+      art.style.setProperty('--camera-rotate-y', `${pointerX * 1.7}deg`);
+    });
+  };
+  if (finePointer) {
+    hero.addEventListener('pointermove', event => {
+      const rect = hero.getBoundingClientRect();
+      pointerX = Math.max(-.5, Math.min(.5, (event.clientX - rect.left) / rect.width - .5));
+      pointerY = Math.max(-.5, Math.min(.5, (event.clientY - rect.top) / rect.height - .5));
+      paint();
+    }, { passive: true, signal });
+    hero.addEventListener('pointerleave', () => { pointerX = 0; pointerY = 0; paint(); }, { passive: true, signal });
+  }
+  window.addEventListener('scroll', paint, { passive: true, signal });
+  window.addEventListener('resize', paint, { passive: true, signal });
+  paint();
 }
 function updateScrollProgress() {
   const bar = document.querySelector('.scroll-progress'); if (!bar) return;
@@ -663,13 +709,14 @@ function route(){
   window.removeEventListener('scroll',updateScrollProgress);
   const routeHash=location.hash.replace(/^#/,'');
   if(routeHash && !routeHash.startsWith('/')){
-    document.documentElement.dataset.theme='light';
-    if(!document.querySelector('.site-header'))brandPageHome();
+    document.documentElement.dataset.theme = localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light';
+    if(!document.querySelector('.launch-nav'))brandPageHome();
+    else window.addEventListener('scroll', updateScrollProgress, { passive: true });
     requestAnimationFrame(()=>document.getElementById(decodeURIComponent(routeHash))?.scrollIntoView({behavior:'smooth',block:'start'}));
     return;
   }
   const path=routeHash||'/';
-  document.documentElement.dataset.theme = path.startsWith('/dashboard') || path === '/login' || path === '/register' ? (localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light') : 'light';
+  document.documentElement.dataset.theme = localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light';
   if(path==='/dashboard'){
     if(!localStorage.getItem('stocksetu-token')){location.hash='#/login';return;}
     activePage='Overview';renderDashboard();
