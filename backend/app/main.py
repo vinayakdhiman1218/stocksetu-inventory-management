@@ -414,3 +414,8 @@ def login_user(
         "access_token": token,
         "token_type": "bearer"
     }
+
+
+# Serve the existing frontend from Vercel's CDN while keeping API routes on
+# this same origin. The build step copies the root static files into public/.
+app.frontend("/", directory="public")
