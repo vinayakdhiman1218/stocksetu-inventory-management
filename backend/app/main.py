@@ -1,6 +1,10 @@
 
+import os
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func, inspect, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
@@ -14,6 +18,23 @@ from .auth import (
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+# Add product fields to existing local SQLite / hosted databases without deleting rows.
+with engine.begin() as connection:
+    product_columns = {column["name"] for column in inspect(engine).get_columns("products")}
+    for column_name, definition in (
+        ("sku", "VARCHAR(60) NOT NULL DEFAULT ''"),
+        ("unit", "VARCHAR(30) NOT NULL DEFAULT 'pieces'"),
+        ("supplier", "VARCHAR(160) NOT NULL DEFAULT ''"),
+        ("user_id", "INTEGER REFERENCES users(id)"),
+    ):
+        if column_name not in product_columns:
+            connection.execute(text(f"ALTER TABLE products ADD COLUMN {column_name} {definition}"))
+    for table_name in ("suppliers", "purchases", "sales"):
+        columns = {column["name"] for column in inspect(engine).get_columns(table_name)}
+        if "user_id" not in columns:
+            connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+        connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
 
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
@@ -24,7 +45,9 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5500",
         "http://localhost:5500",
+        *[origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()],
     ],
+    allow_origin_regex=r"^https?://(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,308 +68,227 @@ def home():
 # ================= PRODUCTS =================
 
 # Add Product
-@app.post("/products", dependencies=[Depends(get_current_user)])
+@app.post("/products")
 def add_product(
     product: schemas.ProductCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    new_product = models.Product(**product.model_dump())
-
+    new_product = models.Product(**product.model_dump(), user_id=current_user.id)
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
-
-    return {
-        "message": "Product added successfully",
-        "product_id": new_product.id
-    }
+    return {"message": "Product added successfully", "product_id": new_product.id}
 
 
-# View All Products
-@app.get("/products", dependencies=[Depends(get_current_user)])
-def get_products(db: Session = Depends(get_db)):
-    products = db.query(models.Product).all()
-    return products
+# View only this account's products
+@app.get("/products")
+def get_products(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return db.query(models.Product).filter(models.Product.user_id == current_user.id).order_by(models.Product.id.desc()).all()
 
 
-# Update Product
-@app.put("/products/{product_id}", dependencies=[Depends(get_current_user)])
+# Update a product owned by this account
+@app.put("/products/{product_id}")
 def update_product(
     product_id: int,
     updated_product: schemas.ProductCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     product = db.query(models.Product).filter(
-        models.Product.id == product_id
+        models.Product.id == product_id,
+        models.Product.user_id == current_user.id,
     ).first()
-
     if product is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
-
-    product.name = updated_product.name
-    product.category = updated_product.category
-    product.quantity = updated_product.quantity
-    product.cost_price = updated_product.cost_price
-    product.selling_price = updated_product.selling_price
-    product.min_stock = updated_product.min_stock
-
+        raise HTTPException(status_code=404, detail="Product not found")
+    for field, value in updated_product.model_dump().items():
+        setattr(product, field, value)
     db.commit()
     db.refresh(product)
-
     return {"message": "Product updated successfully"}
 
 
-# Delete Product
-@app.delete("/products/{product_id}", dependencies=[Depends(get_current_user)])
+# Delete only a product owned by this account
+@app.delete("/products/{product_id}")
 def delete_product(
     product_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     product = db.query(models.Product).filter(
-        models.Product.id == product_id
+        models.Product.id == product_id,
+        models.Product.user_id == current_user.id,
     ).first()
-
     if product is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Product not found")
     db.delete(product)
     db.commit()
-
     return {"message": "Product deleted successfully"}
 
 
 # ================= SUPPLIERS =================
 
-# Add Supplier
-@app.post("/suppliers", dependencies=[Depends(get_current_user)])
-def add_supplier(
-    supplier: schemas.SupplierCreate,
-    db: Session = Depends(get_db)
-):
-    new_supplier = models.Supplier(**supplier.model_dump())
-
+# Supplier records are isolated to the signed-in workspace.
+@app.post("/suppliers")
+def add_supplier(supplier: schemas.SupplierCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    new_supplier = models.Supplier(**supplier.model_dump(), user_id=current_user.id)
     db.add(new_supplier)
     db.commit()
     db.refresh(new_supplier)
-
-    return {
-        "message": "Supplier added successfully",
-        "supplier_id": new_supplier.id
-    }
+    return {"message": "Supplier added successfully", "supplier_id": new_supplier.id}
 
 
-# View All Suppliers
-@app.get("/suppliers", dependencies=[Depends(get_current_user)])
-def get_suppliers(db: Session = Depends(get_db)):
-    return db.query(models.Supplier).all()
+@app.get("/suppliers")
+def get_suppliers(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return db.query(models.Supplier).filter(models.Supplier.user_id == current_user.id).order_by(models.Supplier.id.desc()).all()
 
 
-# Update Supplier
-@app.put("/suppliers/{supplier_id}", dependencies=[Depends(get_current_user)])
-def update_supplier(
-    supplier_id: int,
-    updated_supplier: schemas.SupplierCreate,
-    db: Session = Depends(get_db)
-):
-    supplier = db.query(models.Supplier).filter(
-        models.Supplier.id == supplier_id
-    ).first()
-
+@app.put("/suppliers/{supplier_id}")
+def update_supplier(supplier_id: int, updated_supplier: schemas.SupplierCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id, models.Supplier.user_id == current_user.id).first()
     if supplier is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Supplier not found"
-        )
-
-    supplier.name = updated_supplier.name
-    supplier.phone = updated_supplier.phone
-    supplier.email = updated_supplier.email
-    supplier.address = updated_supplier.address
-
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    for field, value in updated_supplier.model_dump().items():
+        setattr(supplier, field, value)
     db.commit()
     db.refresh(supplier)
-
     return {"message": "Supplier updated successfully"}
 
 
-# Delete Supplier
-@app.delete("/suppliers/{supplier_id}", dependencies=[Depends(get_current_user)])
-def delete_supplier(
-    supplier_id: int,
-    db: Session = Depends(get_db)
-):
-    supplier = db.query(models.Supplier).filter(
-        models.Supplier.id == supplier_id
-    ).first()
-
+@app.delete("/suppliers/{supplier_id}")
+def delete_supplier(supplier_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id, models.Supplier.user_id == current_user.id).first()
     if supplier is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Supplier not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Supplier not found")
     db.delete(supplier)
     db.commit()
-
     return {"message": "Supplier deleted successfully"}
 
 
-# ================= PURCHASES =================
-
-# Add Purchase - Increase Stock
-@app.post("/purchases", dependencies=[Depends(get_current_user)])
-def add_purchase(
-    purchase: schemas.PurchaseCreate,
-    db: Session = Depends(get_db)
-):
-    product = db.query(models.Product).filter(
-        models.Product.id == purchase.product_id
-    ).first()
-
+# Purchases are recorded against products and suppliers in the current workspace.
+@app.post("/purchases")
+def add_purchase(purchase: schemas.PurchaseCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    product = db.query(models.Product).filter(models.Product.id == purchase.product_id, models.Product.user_id == current_user.id).first()
     if product is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
-
-    supplier = db.query(models.Supplier).filter(
-        models.Supplier.id == purchase.supplier_id
-    ).first()
-
+        raise HTTPException(status_code=404, detail="Product not found")
+    supplier = db.query(models.Supplier).filter(models.Supplier.id == purchase.supplier_id, models.Supplier.user_id == current_user.id).first()
     if supplier is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Supplier not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Supplier not found")
     total = purchase.quantity * purchase.unit_cost
-
-    new_purchase = models.Purchase(
-        product_id=purchase.product_id,
-        supplier_id=purchase.supplier_id,
-        quantity=purchase.quantity,
-        total_cost=total
-    )
-
-    # Increase product quantity
     product.quantity += purchase.quantity
-
+    new_purchase = models.Purchase(user_id=current_user.id, product_id=product.id, supplier_id=supplier.id, quantity=purchase.quantity, total_cost=total)
     db.add(new_purchase)
     db.commit()
     db.refresh(new_purchase)
-
-    return {
-        "message": "Purchase added successfully",
-        "purchase_id": new_purchase.id,
-        "total_cost": total,
-        "updated_stock": product.quantity
-    }
+    return {"message": "Purchase added successfully", "purchase_id": new_purchase.id, "total_cost": total, "updated_stock": product.quantity}
 
 
-# View Purchase History
-@app.get("/purchases", dependencies=[Depends(get_current_user)])
-def get_purchases(db: Session = Depends(get_db)):
-    return db.query(models.Purchase).all()
+@app.get("/purchases")
+def get_purchases(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return db.query(models.Purchase).filter(models.Purchase.user_id == current_user.id).order_by(models.Purchase.id.desc()).all()
 
 
-# ================= SALES =================
-
-# Add Sale - Decrease Stock
-@app.post("/sales", dependencies=[Depends(get_current_user)])
-def add_sale(
-    sale: schemas.SaleCreate,
-    db: Session = Depends(get_db)
-):
-    product = db.query(models.Product).filter(
-        models.Product.id == sale.product_id
-    ).first()
-
+# Sales reduce stock only for products in the current workspace.
+@app.post("/sales")
+def add_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    product = db.query(models.Product).filter(models.Product.id == sale.product_id, models.Product.user_id == current_user.id).first()
     if product is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
-
-    # Prevent sales when stock is insufficient
+        raise HTTPException(status_code=404, detail="Product not found")
     if product.quantity < sale.quantity:
-        raise HTTPException(
-            status_code=400,
-            detail="Not enough stock available"
-        )
-
+        raise HTTPException(status_code=400, detail="Not enough stock available")
     total = sale.quantity * product.selling_price
-
-    new_sale = models.Sale(
-        product_id=sale.product_id,
-        quantity=sale.quantity,
-        total_amount=total
-    )
-
-    # Reduce product quantity
     product.quantity -= sale.quantity
-
+    new_sale = models.Sale(user_id=current_user.id, product_id=product.id, quantity=sale.quantity, total_amount=total)
     db.add(new_sale)
     db.commit()
     db.refresh(new_sale)
+    return {"message": "Sale recorded successfully", "sale_id": new_sale.id, "total_amount": total, "remaining_stock": product.quantity}
+
+
+@app.get("/sales")
+def get_sales(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return db.query(models.Sale).filter(models.Sale.user_id == current_user.id).order_by(models.Sale.id.desc()).all()
+
+
+@app.get("/dashboard")
+def get_dashboard(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    products = db.query(models.Product).filter(models.Product.user_id == current_user.id).all()
+    sales = db.query(models.Sale).filter(models.Sale.user_id == current_user.id).all()
+    purchases = db.query(models.Purchase).filter(models.Purchase.user_id == current_user.id).all()
+    return {"total_products": len(products), "total_stock": sum(p.quantity for p in products), "total_sales": sum(s.total_amount for s in sales), "total_purchases": sum(p.total_cost for p in purchases), "low_stock_products": sum(1 for p in products if p.quantity <= p.min_stock)}
+
+
+@app.get("/alerts")
+def get_low_stock_alerts(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    products = db.query(models.Product).filter(models.Product.user_id == current_user.id).all()
+    return [{"id": product.id, "name": product.name, "quantity": product.quantity, "min_stock": product.min_stock} for product in products if product.quantity <= product.min_stock]
+
+
+# ================= BUSINESS SETTINGS =================
+
+def serialize_business_settings(settings, user):
+    if settings is None:
+        return {
+            "business_name": "Store Workspace",
+            "owner_name": user.email.split("@", 1)[0],
+            "phone": "",
+            "email": "",
+            "address": "",
+            "currency": "INR",
+        }
 
     return {
-        "message": "Sale recorded successfully",
-        "sale_id": new_sale.id,
-        "total_amount": total,
-        "remaining_stock": product.quantity
+        "business_name": settings.business_name,
+        "owner_name": settings.owner_name,
+        "phone": settings.phone,
+        "email": settings.email,
+        "address": settings.address,
+        "currency": settings.currency,
     }
 
 
-# View Sales History
-@app.get("/sales", dependencies=[Depends(get_current_user)])
-def get_sales(db: Session = Depends(get_db)):
-    return db.query(models.Sale).all()
+@app.get("/settings")
+def get_business_settings(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    settings = db.query(models.BusinessSettings).filter(
+        models.BusinessSettings.user_id == current_user.id
+    ).first()
+    return serialize_business_settings(settings, current_user)
 
 
-# ================= DASHBOARD =================
+@app.put("/settings")
+def update_business_settings(
+    values: schemas.BusinessSettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    business_name = values.business_name.strip()
+    owner_name = values.owner_name.strip()
+    if not business_name or not owner_name:
+        raise HTTPException(status_code=422, detail="Business name and owner name are required")
 
-@app.get("/dashboard", dependencies=[Depends(get_current_user)])
-def get_dashboard(db: Session = Depends(get_db)):
-    products = db.query(models.Product).all()
-    sales = db.query(models.Sale).all()
-    purchases = db.query(models.Purchase).all()
+    settings = db.query(models.BusinessSettings).filter(
+        models.BusinessSettings.user_id == current_user.id
+    ).first()
+    if settings is None:
+        settings = models.BusinessSettings(user_id=current_user.id)
 
-    return {
-        "total_products": len(products),
-        "total_stock": sum(p.quantity for p in products),
-        "total_sales": sum(s.total_amount for s in sales),
-        "total_purchases": sum(p.total_cost for p in purchases),
-        "low_stock_products": sum(
-            1 for p in products
-            if p.quantity <= p.min_stock
-        )
-    }
+    settings.business_name = business_name
+    settings.owner_name = owner_name
+    settings.phone = values.phone.strip()
+    settings.email = values.email.strip()
+    settings.address = values.address.strip()
+    settings.currency = values.currency.upper()
 
-
-# ================= LOW STOCK ALERTS =================
-
-@app.get("/alerts", dependencies=[Depends(get_current_user)])
-def get_low_stock_alerts(db: Session = Depends(get_db)):
-    products = db.query(models.Product).all()
-
-    low_stock_products = []
-
-    for product in products:
-        if product.quantity <= product.min_stock:
-            low_stock_products.append({
-                "id": product.id,
-                "name": product.name,
-                "quantity": product.quantity,
-                "min_stock": product.min_stock
-            })
-
-    return low_stock_products
+    db.add(settings)
+    db.commit()
+    db.refresh(settings)
+    return serialize_business_settings(settings, current_user)
 
 
 # ================= AUTHENTICATION =================
@@ -357,24 +299,43 @@ def register_user(
     user: schemas.UserRegister,
     db: Session = Depends(get_db)
 ):
+    normalized_email = user.email.strip().casefold()
     existing_user = db.query(models.User).filter(
-        models.User.email == user.email
+        func.lower(models.User.email) == normalized_email
     ).first()
 
     if existing_user:
         raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
+            status_code=409,
+            detail="An account with this email already exists. Log in instead."
         )
 
     new_user = models.User(
-        email=user.email,
+        email=normalized_email,
         password_hash=hash_password(user.password)
     )
 
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        db.add(new_user)
+        db.flush()
+        db.add(models.BusinessSettings(
+            user_id=new_user.id,
+            business_name="Store Workspace",
+            owner_name=normalized_email.split("@", 1)[0],
+            email=normalized_email,
+            currency="INR",
+        ))
+        db.commit()
+        db.refresh(new_user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists. Log in instead.",
+        )
+    except Exception:
+        db.rollback()
+        raise
 
     return {
         "message": "User registered successfully",
@@ -388,8 +349,9 @@ def login_user(
     user: schemas.UserLogin,
     db: Session = Depends(get_db)
 ):
+    normalized_email = user.email.strip().casefold()
     existing_user = db.query(models.User).filter(
-        models.User.email == user.email
+        func.lower(models.User.email) == normalized_email
     ).first()
 
     if existing_user is None:

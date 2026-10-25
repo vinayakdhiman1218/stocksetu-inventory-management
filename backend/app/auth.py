@@ -1,79 +1,55 @@
 
-import jwt
 import os
 from datetime import datetime, timedelta, timezone
-from pwdlib import PasswordHash
 
+import jwt
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
-from .database import get_db
 from . import models
+from .database import get_db
 
-from pwdlib import PasswordHash
 
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("VERCEL"):
+        raise RuntimeError("Set JWT_SECRET_KEY in the Vercel project environment variables.")
+    SECRET_KEY = "stocksetu-local-development-only-change-before-deploying"
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_TTL_HOURS = int(os.getenv("ACCESS_TOKEN_TTL_HOURS", "12"))
 password_hasher = PasswordHash.recommended()
 
-def hash_password(password):
+
+def hash_password(password: str) -> str:
     return password_hasher.hash(password)
 
-def verify_password(password, hashed_password):
-    return password_hasher.verify(password, hashed_password)
 
-import jwt
-import os
-from datetime import datetime, timedelta, timezone
+def verify_password(password: str, hashed_password: str) -> bool:
+    try:
+        return password_hasher.verify(password, hashed_password)
+    except (ValueError, TypeError):
+        return False
 
-SECRET_KEY = os.environ["JWT_SECRET_KEY"]
-ALGORITHM = "HS256"
 
-def create_access_token(user_id):
-    expiry = datetime.now(timezone.utc) + timedelta(hours=2)
-
-    payload = {
-        "sub": str(user_id),
-        "exp": expiry
-    }
-
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-    return token
-
-import jwt
-import os
-from datetime import datetime, timedelta, timezone
-from pwdlib import PasswordHash
-
-password_hasher = PasswordHash.recommended()
-
-def hash_password(password):
-    return password_hasher.hash(password)
-
-def verify_password(password, hashed_password):
-    return password_hasher.verify(password, hashed_password)
-
-SECRET_KEY = os.environ["JWT_SECRET_KEY"]
-ALGORITHM = "HS256"
-
-def create_access_token(user_id):
-    expiry = datetime.now(timezone.utc) + timedelta(hours=2)
-
-    payload = {
-        "sub": str(user_id),
-        "exp": expiry
-    }
-
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-    return token
+def create_access_token(user_id: int) -> str:
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_TTL_HOURS)
+    payload = {"sub": str(user_id), "exp": expires_at}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 # JWT Token Verification
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: Session = Depends(get_db)
 ):
     try:
+        if credentials is None:
+            raise HTTPException(status_code=401, detail="Please log in to continue")
+
         token = credentials.credentials
 
         payload = jwt.decode(
@@ -84,7 +60,7 @@ def get_current_user(
 
         user_id = int(payload["sub"])
 
-    except (jwt.PyJWTError, ValueError, KeyError):
+    except (jwt.PyJWTError, ValueError, KeyError, TypeError):
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired token"

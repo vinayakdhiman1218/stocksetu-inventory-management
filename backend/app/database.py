@@ -1,5 +1,6 @@
 
 import os
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -10,7 +11,10 @@ if not DATABASE_URL:
         raise RuntimeError(
             "DATABASE_URL must point to a persistent PostgreSQL database on Vercel."
         )
-    DATABASE_URL = "sqlite:///./stocksetu.db"
+    # Keep the local database beside the backend package so starting Uvicorn
+    # from the repo root or the backend folder uses the same persistent file.
+    local_database = Path(__file__).resolve().parents[1] / "stocksetu.db"
+    DATABASE_URL = f"sqlite:///{local_database.as_posix()}"
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
