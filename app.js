@@ -265,6 +265,10 @@ function bindDashboard() {
     const action = event.target.closest('[data-action]');
     if (action) handleAction(action);
   };
+  root.onchange = event => {
+    const teamRole = event.target.closest('[data-team-role]');
+    if (teamRole) handleTeamRoleChange(teamRole);
+  };
   root.querySelector('#table-search')?.addEventListener('input',event=>{searchTerm=event.target.value;updateProductRows();});
   root.querySelector('#status-filter')?.addEventListener('change',event=>{statusFilter=event.target.value;updateProductRows();});
   root.querySelector('#sales-search')?.addEventListener('input',event=>{const q=event.target.value.toLowerCase();root.querySelector('#sales-table').innerHTML=salesTable(state.sales.filter(s=>`${s.id} ${s.customer}`.toLowerCase().includes(q)));});
@@ -293,6 +297,7 @@ function handleAction(button) {
     return;
   }
   closeRowMenus();
+  if (handleTeamAccessAction(action, id)) return;
   if(action==='toggle-theme'){
     const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
     document.documentElement.dataset.theme=next; localStorage.setItem('stocksetu-theme',next); renderDashboard(); return;
@@ -361,6 +366,7 @@ async function handleForm(event) {
   if(!type)return;
   event.preventDefault();
   const data=Object.fromEntries(new FormData(form));
+  if(type==='team-invite')return handleTeamAccessForm(form);
   if(type==='product')return handleProductForm(form,data,type);
   if(type==='sale')return handleSaleForm(form,data,type);
   if(type==='purchase')return handlePurchaseForm(form,data,type);
