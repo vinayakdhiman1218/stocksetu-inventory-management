@@ -378,6 +378,6 @@ def login_user(
     }
 
 
-# Serve the existing frontend from Vercel's CDN while keeping API routes on
-# this same origin. The build step copies the root static files into public/.
-app.frontend("/", directory="public")
+# Vercel serves the committed public/ assets from its CDN. Keep this FastAPI
+# function focused on API routes so it does not depend on a static directory
+# that Vercel excludes from its runtime bundle.
