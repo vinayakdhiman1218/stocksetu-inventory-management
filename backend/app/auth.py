@@ -77,4 +77,43 @@ def get_current_user(
         )
 
     return user
+    
+def verify_google_credential(credential: str) -> dict:
+    """Validate a Google ID token (signature, expiry, audience) and return its claims."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=503,
+            detail="Google sign-in is not configured on the server.",
+        )
 
+    try:
+        from google.auth.exceptions import GoogleAuthError
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+
+        claims = id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            GOOGLE_CLIENT_ID,
+            clock_skew_in_seconds=10,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail="Google sign-in could not be verified. Please try again.",
+        )
+    except GoogleAuthError:
+        # Google's certificate server could not be reached.
+        raise HTTPException(
+            status_code=503,
+            detail="Could not reach Google to verify your sign-in. Please try again.",
+        )
+
+    if not claims.get("email") or not claims.get("email_verified"):
+        raise HTTPException(
+            status_code=401,
+            detail="Your Google account's email address is not verified.",
+        )
+
+    return claims
+    
