@@ -551,3 +551,10 @@ html[data-theme="dark"] .danger-link { color: #ff9b91; }
 @media (max-width: 820px) { .team-access-content { padding: 14px; gap: 17px; } }
 @media (max-width: 560px) { .team-summary-grid { grid-template-columns: 1fr; } .team-role-grid { grid-template-columns: 1fr; } .team-section-heading { align-items: flex-start; flex-direction: column; } .team-section-heading .btn { width: 100%; justify-content: center; } .role-preview-lists { grid-template-columns: 1fr; } }
 .team-invite-actions { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+
+/* Sign in with Google */
+.social-login{margin-top:18px}
+.auth-divider{display:flex;align-items:center;gap:12px;margin-bottom:16px;color:var(--muted);font-size:11px}
+.auth-divider:before,.auth-divider:after{content:'';flex:1;height:1px;background:var(--line)}
+.social-login[hidden]{display:none}
+.google-signin{display:flex;justify-content:center;min-height:44px}
