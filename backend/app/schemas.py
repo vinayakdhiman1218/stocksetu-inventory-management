@@ -46,6 +46,22 @@ class UserRegister(BaseModel):
         return normalized
 
 
+class EmailVerificationRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=256)
+
+
+class EmailResendRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        normalized = value.strip().casefold()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", normalized):
+            raise ValueError("Enter a valid email address")
+        return normalized
+
+
 class GoogleCredentialRequest(BaseModel):
     credential: str = Field(min_length=20, max_length=10000)
 

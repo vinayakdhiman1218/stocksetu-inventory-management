@@ -1,6 +1,7 @@
 
 import os
 import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,11 @@ from .auth import (
     get_current_user,
     GOOGLE_CLIENT_ID,
     verify_google_credential,
+)
+from .email_verification import (
+    create_verification_token,
+    hash_verification_token,
+    send_verification_email,
 )
 
 # Create database tables
@@ -39,9 +45,18 @@ with engine.begin() as connection:
         connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
     connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
     user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
-    if "google_sub" not in user_columns:
-        connection.execute(text("ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)"))
+    for column_name, definition in (
+        ("google_sub", "VARCHAR(255)"),
+        # Preserve login access for accounts created before email verification existed.
+        ("email_verified", "BOOLEAN NOT NULL DEFAULT TRUE"),
+        ("email_verification_token_hash", "VARCHAR(64)"),
+        ("email_verification_expires_at", "TIMESTAMP WITH TIME ZONE"),
+        ("email_verification_sent_at", "TIMESTAMP WITH TIME ZONE"),
+    ):
+        if column_name not in user_columns:
+            connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
     connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
+    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_verification_token_hash ON users (email_verification_token_hash)"))
 
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
@@ -306,47 +321,74 @@ def register_user(
     user: schemas.UserRegister,
     db: Session = Depends(get_db)
 ):
+    raise HTTPException(status_code=410, detail="Email/password signup is disabled. Continue with Google to create an account.")
     normalized_email = user.email.strip().casefold()
     existing_user = db.query(models.User).filter(
         func.lower(models.User.email) == normalized_email
     ).first()
 
-    if existing_user:
+    if existing_user and existing_user.email_verified:
         raise HTTPException(
             status_code=409,
             detail="An account with this email already exists. Log in instead."
         )
 
-    new_user = models.User(
-        email=normalized_email,
-        password_hash=hash_password(user.password)
-    )
-
-    try:
-        db.add(new_user)
-        db.flush()
-        db.add(models.BusinessSettings(
-            user_id=new_user.id,
-            business_name="Store Workspace",
-            owner_name=normalized_email.split("@", 1)[0],
+    now = datetime.now(timezone.utc)
+    if existing_user is None:
+        new_user = models.User(
             email=normalized_email,
-            currency="INR",
-        ))
+            password_hash=hash_password(user.password),
+            email_verified=False,
+        )
+        try:
+            db.add(new_user)
+            db.flush()
+            db.add(models.BusinessSettings(
+                user_id=new_user.id,
+                business_name="Store Workspace",
+                owner_name=normalized_email.split("@", 1)[0],
+                email=normalized_email,
+                currency="INR",
+            ))
+            existing_user = new_user
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="An account with this email already exists. Log in instead.",
+            )
+
+    # A repeat signup can request another link only after the resend cooldown.
+    if existing_user.email_verification_sent_at:
+        sent_at = existing_user.email_verification_sent_at
+        if sent_at.tzinfo is None:
+            sent_at = sent_at.replace(tzinfo=timezone.utc)
+        remaining = 60 - (now - sent_at).total_seconds()
+        if remaining > 0:
+            if db.new or db.dirty:
+                db.rollback()
+            raise HTTPException(
+                status_code=429,
+                detail="A verification email was just requested. Please wait a minute before trying again.",
+            )
+
+    token = create_verification_token()
+    existing_user.email_verification_token_hash = hash_verification_token(token)
+    existing_user.email_verification_expires_at = now + timedelta(hours=24)
+    existing_user.email_verification_sent_at = now
+    try:
         db.commit()
-        db.refresh(new_user)
+        db.refresh(existing_user)
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="An account with this email already exists. Log in instead.",
-        )
-    except Exception:
-        db.rollback()
-        raise
+        raise HTTPException(status_code=409, detail="This account could not be created. Please try again.")
 
+    email_sent = send_verification_email(existing_user.email, token)
     return {
-        "message": "User registered successfully",
-        "user_id": new_user.id
+        "message": "Account created. Verify your email to activate your account.",
+        "user_id": existing_user.id,
+        "verification_required": True,
+        "email_sent": email_sent,
     }
 
 
@@ -356,28 +398,22 @@ def login_user(
     user: schemas.UserLogin,
     db: Session = Depends(get_db)
 ):
+    raise HTTPException(status_code=410, detail="Email/password login is disabled. Please sign in with Google.")
     normalized_email = user.email.strip().casefold()
     existing_user = db.query(models.User).filter(
         func.lower(models.User.email) == normalized_email
     ).first()
 
-    if existing_user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password"
-        )
+    if existing_user is None or not verify_password(user.password, existing_user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not verify_password(
-        user.password,
-        existing_user.password_hash
-    ):
+    if not existing_user.email_verified:
         raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password"
+            status_code=403,
+            detail="Please verify your email before logging in. Use the resend option to request a fresh link.",
         )
 
     token = create_access_token(existing_user.id)
-
     return {
         "message": "Login successful",
         "access_token": token,
@@ -385,6 +421,67 @@ def login_user(
     }
 
 
+@app.post("/auth/email/verify")
+def verify_email_address(
+    payload: schemas.EmailVerificationRequest,
+    db: Session = Depends(get_db),
+):
+    token_hash = hash_verification_token(payload.token)
+    user = db.query(models.User).filter(
+        models.User.email_verification_token_hash == token_hash
+    ).first()
+    if user is None or user.email_verified or user.email_verification_expires_at is None:
+        raise HTTPException(status_code=400, detail="This verification link is invalid or has already been used.")
+
+    expires_at = user.email_verification_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="This verification link has expired. Request a new one and try again.")
+
+    user.email_verified = True
+    user.email_verification_token_hash = None
+    user.email_verification_expires_at = None
+    user.email_verification_sent_at = None
+    db.commit()
+    return {"message": "Email verified. Your account is ready."}
+
+
+@app.post("/auth/email/resend", status_code=202)
+def resend_verification_email(
+    payload: schemas.EmailResendRequest,
+    db: Session = Depends(get_db),
+):
+    generic_message = "If this email has an account that needs verification, a fresh link will be sent shortly."
+    user = db.query(models.User).filter(
+        func.lower(models.User.email) == payload.email
+    ).first()
+    if user is None or user.email_verified:
+        return {"message": generic_message}
+
+    now = datetime.now(timezone.utc)
+    if user.email_verification_sent_at:
+        sent_at = user.email_verification_sent_at
+        if sent_at.tzinfo is None:
+            sent_at = sent_at.replace(tzinfo=timezone.utc)
+        if (now - sent_at).total_seconds() < 60:
+            raise HTTPException(
+                status_code=429,
+                detail="A verification email was just requested. Please wait a minute before trying again.",
+            )
+
+    token = create_verification_token()
+    user.email_verification_token_hash = hash_verification_token(token)
+    user.email_verification_expires_at = now + timedelta(hours=24)
+    user.email_verification_sent_at = now
+    db.commit()
+    sent = send_verification_email(user.email, token)
+    if not sent:
+        raise HTTPException(
+            status_code=503,
+            detail="Email delivery is not configured yet. Please try again later.",
+        )
+    return {"message": generic_message}
 
 
 # Google Identity Services configuration and sign-in/signup.
@@ -435,6 +532,8 @@ def google_login(
         db.rollback()
         raise HTTPException(status_code=409, detail="This Google account could not be linked. Please log in and try again.")
 
+    user.email_verified = True
+    db.commit()
     settings = db.query(models.BusinessSettings).filter(
         models.BusinessSettings.user_id == user.id
     ).first()

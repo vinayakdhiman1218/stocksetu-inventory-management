@@ -393,9 +393,11 @@ function route(){
     requestAnimationFrame(()=>document.getElementById(decodeURIComponent(routeHash))?.scrollIntoView({behavior:'smooth',block:'start'}));
     return;
   }
-  const path=routeHash||'/';
+  const [path, query = ''] = (routeHash || '/').split('?', 2);
   document.documentElement.dataset.theme = localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light';
-  if(path==='/dashboard'){
+  if(path==='/verify-email'){
+    renderEmailVerification(new URLSearchParams(query).get('token') || '');
+  }else if(path==='/dashboard'){
     if(!getAuthToken()){location.hash='#/login';return;}
     activePage='Overview';renderDashboard();
     loadSettingsFromBackend();

@@ -559,3 +559,5 @@ html[data-theme="dark"] .danger-link { color: #ff9b91; }
 .social-login[hidden]{display:none}
 .google-signin{display:flex;justify-content:center;min-height:44px;width:100%;overflow:hidden}
 .google-signin iframe{max-width:100%}
+
+.login-resend{display:block;margin:-5px 0 12px;font-size:11px}.register-success .text-btn{width:max-content;text-align:left}

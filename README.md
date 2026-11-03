@@ -10,3 +10,21 @@ StockSetu is a capstone prototype for everyday inventory, billing and supplier w
 4. Redeploy the backend/frontend after setting the variable. The login and signup pages show Google's official button only when the backend reports that a client ID is configured.
 
 Google ID tokens are verified server-side for signature, expiry, issuer, audience, and verified email. First-time Google users receive a StockSetu account and business settings; a verified matching email links Google sign-in to an existing StockSetu account.
+
+
+## Email verification for password signups
+
+Password-based signup creates a pending account and emails a one-time verification link. The link expires after 24 hours; users can request a replacement after a 60-second cooldown. Existing accounts remain verified, and Google sign-in remains verified by Google's ID token.
+
+Configure these variables in the backend environment and in Vercel Production (and Preview if you use it):
+
+```env
+SMTP_HOST=<your SMTP server>
+SMTP_PORT=587
+SMTP_USERNAME=<SMTP login>
+SMTP_PASSWORD=<SMTP password or app password>
+SMTP_FROM_EMAIL=<verified sender address>
+APP_BASE_URL=https://stocksetu-inventory-management.vercel.app
+```
+
+Port 587 uses STARTTLS by default. For an SSL-only SMTP service, set `SMTP_USE_SSL=true` and its SSL port (commonly 465). Keep credentials in environment variables; never commit them. Until SMTP is configured, signup will clearly report that it could not send the email and the pending account cannot log in.

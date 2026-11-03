@@ -82,10 +82,9 @@ def get_current_user(
     ).first()
 
     if user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
+        raise HTTPException(status_code=401, detail="User not found")
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="Please verify your email before using StockSetu.")
 
     return user
     

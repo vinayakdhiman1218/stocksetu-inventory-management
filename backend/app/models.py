@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Float, ForeignKey, text
 from .database import Base
 
 class Product(Base):
@@ -54,6 +54,11 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     google_sub = Column(String(255), unique=True, nullable=True)
+    # Existing accounts are grandfathered as verified by the additive DB migration.
+    email_verified = Column(Boolean, nullable=False, default=True, server_default=text("true"))
+    email_verification_token_hash = Column(String(64), nullable=True, unique=True)
+    email_verification_expires_at = Column(DateTime(timezone=True), nullable=True)
+    email_verification_sent_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class BusinessSettings(Base):
