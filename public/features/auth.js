@@ -17,11 +17,6 @@ function loadGoogleIdentityScript() {
   return googleIdentityScriptPromise;
 }
 
-function isAppleDevice() {
-  const ua = navigator.userAgent || '';
-  return /iPhone|iPad|iPod|Macintosh|Mac OS X/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
 function loadAppleIdentityScript() {
   if (window.AppleID?.auth) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -37,15 +32,16 @@ function loadAppleIdentityScript() {
 async function setupAppleSignIn(flow) {
   const section = document.querySelector(`#apple-login-${flow}`);
   const button = document.querySelector(`#apple-button-${flow}`);
-  if (!section || !button || !isAppleDevice()) return;
+  if (!section || !button) return;
+  section.hidden = false;
   try {
     const response = await fetch(`${API_BASE_URL}/auth/apple/config`);
-    if (!response.ok) return;
+    if (!response.ok) { button.disabled = true; button.innerHTML = '<span aria-hidden="true"></span> Apple ID · setup required'; return; }
     const config = await response.json();
-    if (!config.client_id) return;
+    if (!config.client_id) { button.disabled = true; button.innerHTML = '<span aria-hidden="true"></span> Apple ID · setup required'; return; }
     await loadAppleIdentityScript();
     if (!section.isConnected || !window.AppleID?.auth) return;
-    section.hidden = false;
+    button.disabled = false;
     button.addEventListener('click', async () => {
       const errorBox = document.querySelector(`#${flow}-error`);
       errorBox.hidden = true;
@@ -143,13 +139,13 @@ async function handleGoogleCredential(response) {
 }
 
 function renderLogin() {
-  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Sign in securely with your account.</p><div class="form-error" id="login-error" role="alert" hidden></div><div class="social-login google-only" id="google-login-login" hidden><div class="google-signin" id="google-button-login"></div></div><div class="social-login provider-login" id="apple-login-login" hidden><button class="apple-signin" id="apple-button-login" type="button"><span aria-hidden="true"></span> Continue with Apple</button></div><div class="login-demo"><strong>Workspace access:</strong> Sign in with the account linked to your StockSetu workspace. New accounts are created automatically.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#/register">Create an account</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
+  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Sign in securely with your account.</p><div class="form-error" id="login-error" role="alert" hidden></div><div class="social-login google-only" id="google-login-login" hidden><div class="google-signin" id="google-button-login"></div></div><div class="social-login provider-login" id="apple-login-login"><button class="apple-signin" id="apple-button-login" type="button"><span aria-hidden="true"></span> Continue with Apple</button><small class="provider-status">Available across devices after Apple Developer setup.</small><button class="brand-signin-pending" type="button" disabled>Samsung Account · integration setup required</button></div><div class="login-demo"><strong>Workspace access:</strong> Sign in with the account linked to your StockSetu workspace. New accounts are created automatically.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#/register">Create an account</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
   setupGoogleSignIn('login');
   setupAppleSignIn('login');
 }
 
 function renderRegister() {
-  root.innerHTML = `<main class="login-page register-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">A clear start</span><h1>One place for <em>your business.</em></h1><p>Create your StockSetu account to keep your stock and daily records together.</p><div class="login-aside-points"><span>${icon('check')} Your own login</span><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Business records in one place</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Get started</span><h2>Create your account</h2><p class="login-subtitle">Continue with your account to create your secure workspace.</p><div class="form-error" id="register-error" role="alert" hidden></div><div class="social-login google-only" id="google-login-register" hidden><div class="google-signin" id="google-button-register"></div></div><div class="social-login provider-login" id="apple-login-register" hidden><button class="apple-signin" id="apple-button-register" type="button"><span aria-hidden="true"></span> Sign up with Apple</button></div><div class="login-demo"><strong>One tap to get started:</strong> Your verified account creates your StockSetu workspace automatically.</div><div class="login-bottom">Already have an account? <a class="text-btn" href="#/login">Log in</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
+  root.innerHTML = `<main class="login-page register-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">A clear start</span><h1>One place for <em>your business.</em></h1><p>Create your StockSetu account to keep your stock and daily records together.</p><div class="login-aside-points"><span>${icon('check')} Your own login</span><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Business records in one place</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Get started</span><h2>Create your account</h2><p class="login-subtitle">Continue with your account to create your secure workspace.</p><div class="form-error" id="register-error" role="alert" hidden></div><div class="social-login google-only" id="google-login-register" hidden><div class="google-signin" id="google-button-register"></div></div><div class="social-login provider-login" id="apple-login-register"><button class="apple-signin" id="apple-button-register" type="button"><span aria-hidden="true"></span> Sign up with Apple</button><small class="provider-status">Available across devices after Apple Developer setup.</small><button class="brand-signin-pending" type="button" disabled>Samsung Account · integration setup required</button></div><div class="login-demo"><strong>One tap to get started:</strong> Your verified account creates your StockSetu workspace automatically.</div><div class="login-bottom">Already have an account? <a class="text-btn" href="#/login">Log in</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
   setupGoogleSignIn('register');
   setupAppleSignIn('register');
 }
