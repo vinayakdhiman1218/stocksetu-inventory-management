@@ -559,5 +559,9 @@ html[data-theme="dark"] .danger-link { color: #ff9b91; }
 .social-login[hidden]{display:none}
 .google-signin{display:flex;justify-content:center;min-height:44px;width:100%;overflow:hidden}
 .google-signin iframe{max-width:100%}
+.provider-login[hidden]{display:none}
+.apple-signin{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:48px;border:1px solid #111;border-radius:8px;background:#050505;color:white;font-size:14px;font-weight:600;cursor:pointer}
+.apple-signin span{font-size:19px;line-height:1}
+html[data-theme="dark"] .apple-signin{border-color:#555;background:#f5f5f5;color:#111}
 
 .login-resend{display:block;margin:-5px 0 12px;font-size:11px}.register-success .text-btn{width:max-content;text-align:left}

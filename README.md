@@ -11,6 +11,10 @@ StockSetu is a capstone prototype for everyday inventory, billing and supplier w
 
 Google ID tokens are verified server-side for signature, expiry, issuer, audience, and verified email. First-time Google users receive a StockSetu account and business settings; a verified matching email links Google sign-in to an existing StockSetu account.
 
+## Sign in with Apple
+
+Apple sign-in is offered on Apple devices only after configuring a **Sign in with Apple Services ID**. Register the production domain and return URL with Apple, then set `STOCKSETU_APPLE_CLIENT_ID` to the Services ID in the backend environment and Vercel Production. Keep Apple private keys on the server; never add them to frontend code. Apple ID tokens are verified server-side against Apple's signing keys, issuer, audience, and expiry. Until this setup is complete, Apple devices continue to use the working Google sign-in.
+
 
 ## Email verification for password signups
 

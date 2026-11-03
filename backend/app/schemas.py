@@ -66,6 +66,10 @@ class GoogleCredentialRequest(BaseModel):
     credential: str = Field(min_length=20, max_length=10000)
 
 
+class AppleCredentialRequest(BaseModel):
+    identity_token: str = Field(min_length=20, max_length=10000)
+
+
 class UserLogin(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)

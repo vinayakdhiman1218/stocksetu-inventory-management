@@ -1,6 +1,7 @@
 
 import os
 import secrets
+import jwt
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -17,6 +18,7 @@ from .auth import (
     create_access_token,
     get_current_user,
     GOOGLE_CLIENT_ID,
+    APPLE_CLIENT_ID,
     verify_google_credential,
 )
 from .email_verification import (
@@ -47,6 +49,7 @@ with engine.begin() as connection:
     user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
     for column_name, definition in (
         ("google_sub", "VARCHAR(255)"),
+        ("apple_sub", "VARCHAR(255)"),
         # Preserve login access for accounts created before email verification existed.
         ("email_verified", "BOOLEAN NOT NULL DEFAULT TRUE"),
         ("email_verification_token_hash", "VARCHAR(64)"),
@@ -56,6 +59,7 @@ with engine.begin() as connection:
         if column_name not in user_columns:
             connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
     connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
+    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_apple_sub ON users (apple_sub)"))
     connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_verification_token_hash ON users (email_verification_token_hash)"))
 
 # Create FastAPI application
@@ -546,6 +550,65 @@ def google_login(
             "email": user.email,
             "owner_name": settings.owner_name if settings else display_name,
         },
+    }
+
+
+@app.get("/auth/apple/config")
+def apple_auth_config():
+    return {"client_id": APPLE_CLIENT_ID}
+
+
+@app.post("/auth/apple")
+def apple_login(payload: schemas.AppleCredentialRequest, db: Session = Depends(get_db)):
+    if not APPLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Sign in with Apple is not configured yet.")
+    try:
+        signing_key = jwt.PyJWKClient("https://appleid.apple.com/auth/keys").get_signing_key_from_jwt(payload.identity_token)
+        claims = jwt.decode(
+            payload.identity_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=APPLE_CLIENT_ID,
+            issuer="https://appleid.apple.com",
+            leeway=10,
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Apple sign-in could not be verified. Please try again.")
+    except Exception:
+        raise HTTPException(status_code=503, detail="Could not reach Apple to verify your sign-in.")
+
+    apple_sub = str(claims.get("sub") or "")
+    email = str(claims.get("email") or "").strip().casefold()
+    if not apple_sub or not claims.get("email_verified"):
+        raise HTTPException(status_code=401, detail="Apple did not return a verified account identity.")
+    display_name = email.split("@", 1)[0] if email else "StockSetu owner"
+    user = db.query(models.User).filter(models.User.apple_sub == apple_sub).first()
+    if user is None and email:
+        user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
+        if user and user.apple_sub and user.apple_sub != apple_sub:
+            raise HTTPException(status_code=409, detail="This account is linked to a different Apple identity.")
+    if user is None:
+        if not email:
+            raise HTTPException(status_code=400, detail="Apple did not provide an email for first-time account setup.")
+        user = models.User(email=email, password_hash=hash_password(secrets.token_urlsafe(48)), apple_sub=apple_sub, email_verified=True)
+        db.add(user)
+        db.flush()
+        db.add(models.BusinessSettings(user_id=user.id, business_name="Store Workspace", owner_name=display_name, email=email, currency="INR"))
+    else:
+        user.apple_sub = apple_sub
+        user.email_verified = True
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This Apple account could not be linked. Please try again.")
+    settings = db.query(models.BusinessSettings).filter(models.BusinessSettings.user_id == user.id).first()
+    return {
+        "message": "Apple sign-in successful",
+        "access_token": create_access_token(user.id),
+        "token_type": "bearer",
+        "user": {"email": user.email, "owner_name": settings.owner_name if settings else display_name},
     }
 
 

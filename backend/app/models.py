@@ -54,6 +54,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     google_sub = Column(String(255), unique=True, nullable=True)
+    apple_sub = Column(String(255), unique=True, nullable=True)
     # Existing accounts are grandfathered as verified by the additive DB migration.
     email_verified = Column(Boolean, nullable=False, default=True, server_default=text("true"))
     email_verification_token_hash = Column(String(64), nullable=True, unique=True)

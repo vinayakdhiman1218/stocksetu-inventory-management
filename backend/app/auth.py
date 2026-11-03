@@ -24,6 +24,7 @@ GOOGLE_CLIENT_ID = (
     os.getenv("STOCKSETU_GOOGLE_CLIENT_ID")
     or os.getenv("GOOGLE_CLIENT_ID", "")
 ).strip()
+APPLE_CLIENT_ID = os.getenv("STOCKSETU_APPLE_CLIENT_ID", "").strip()
 if not SECRET_KEY:
     if os.getenv("VERCEL"):
         raise RuntimeError("Set JWT_SECRET_KEY in the Vercel project environment variables.")
