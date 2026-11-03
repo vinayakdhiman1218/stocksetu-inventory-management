@@ -1,5 +1,6 @@
 
 import os
+import secrets
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,9 @@ from .auth import (
     hash_password,
     verify_password,
     create_access_token,
-    get_current_user
+    get_current_user,
+    GOOGLE_CLIENT_ID,
+    verify_google_credential,
 )
 
 # Create database tables
@@ -35,6 +38,10 @@ with engine.begin() as connection:
             connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
         connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
     connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
+    user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
+    if "google_sub" not in user_columns:
+        connection.execute(text("ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)"))
+    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
 
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
@@ -375,6 +382,71 @@ def login_user(
         "message": "Login successful",
         "access_token": token,
         "token_type": "bearer"
+    }
+
+
+
+
+# Google Identity Services configuration and sign-in/signup.
+@app.get("/auth/google/config")
+def google_auth_config():
+    # OAuth client IDs are public identifiers; never return the client secret here.
+    return {"client_id": GOOGLE_CLIENT_ID}
+
+
+@app.post("/auth/google")
+def google_login(
+    payload: schemas.GoogleCredentialRequest,
+    db: Session = Depends(get_db),
+):
+    claims = verify_google_credential(payload.credential)
+    email = str(claims["email"]).strip().casefold()
+    google_sub = str(claims["sub"])
+    display_name = str(claims.get("name") or email.split("@", 1)[0]).strip()[:120]
+
+    user = db.query(models.User).filter(models.User.google_sub == google_sub).first()
+    if user is None:
+        user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
+        if user is not None and user.google_sub and user.google_sub != google_sub:
+            raise HTTPException(status_code=409, detail="This account is linked to a different Google identity.")
+        if user is None:
+            user = models.User(
+                email=email,
+                password_hash=hash_password(secrets.token_urlsafe(48)),
+                google_sub=google_sub,
+            )
+            db.add(user)
+            db.flush()
+            db.add(models.BusinessSettings(
+                user_id=user.id,
+                business_name="Store Workspace",
+                owner_name=display_name,
+                email=email,
+                currency="INR",
+            ))
+        else:
+            # Google has verified this exact email, so link it to the existing account.
+            user.google_sub = google_sub
+
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This Google account could not be linked. Please log in and try again.")
+
+    settings = db.query(models.BusinessSettings).filter(
+        models.BusinessSettings.user_id == user.id
+    ).first()
+    token = create_access_token(user.id)
+    return {
+        "message": "Google sign-in successful",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "email": user.email,
+            "owner_name": settings.owner_name if settings else display_name,
+        },
     }
 
 

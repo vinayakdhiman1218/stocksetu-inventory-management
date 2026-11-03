@@ -1,6 +1,13 @@
 
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+except ImportError:
+    pass
 
 import jwt
 from fastapi import Depends, HTTPException
@@ -13,6 +20,10 @@ from .database import get_db
 
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+GOOGLE_CLIENT_ID = (
+    os.getenv("STOCKSETU_GOOGLE_CLIENT_ID")
+    or os.getenv("GOOGLE_CLIENT_ID", "")
+).strip()
 if not SECRET_KEY:
     if os.getenv("VERCEL"):
         raise RuntimeError("Set JWT_SECRET_KEY in the Vercel project environment variables.")
@@ -79,7 +90,7 @@ def get_current_user(
     return user
     
 def verify_google_credential(credential: str) -> dict:
-    """Validate a Google ID token (signature, expiry, audience) and return its claims."""
+    """Verify the Google ID token signature, expiry, issuer and configured audience."""
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(
             status_code=503,
@@ -90,7 +101,13 @@ def verify_google_credential(credential: str) -> dict:
         from google.auth.exceptions import GoogleAuthError
         from google.auth.transport import requests as google_requests
         from google.oauth2 import id_token
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="Google sign-in dependencies are not installed on the server.",
+        )
 
+    try:
         claims = id_token.verify_oauth2_token(
             credential,
             google_requests.Request(),
@@ -103,16 +120,15 @@ def verify_google_credential(credential: str) -> dict:
             detail="Google sign-in could not be verified. Please try again.",
         )
     except GoogleAuthError:
-        # Google's certificate server could not be reached.
         raise HTTPException(
             status_code=503,
             detail="Could not reach Google to verify your sign-in. Please try again.",
         )
 
-    if not claims.get("email") or not claims.get("email_verified"):
+    if not claims.get("email") or not claims.get("email_verified") or not claims.get("sub"):
         raise HTTPException(
             status_code=401,
-            detail="Your Google account's email address is not verified.",
+            detail="Google did not return a verified account identity.",
         )
 
     return claims

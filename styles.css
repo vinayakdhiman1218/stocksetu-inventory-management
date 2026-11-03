@@ -557,4 +557,5 @@ html[data-theme="dark"] .danger-link { color: #ff9b91; }
 .auth-divider{display:flex;align-items:center;gap:12px;margin-bottom:16px;color:var(--muted);font-size:11px}
 .auth-divider:before,.auth-divider:after{content:'';flex:1;height:1px;background:var(--line)}
 .social-login[hidden]{display:none}
-.google-signin{display:flex;justify-content:center;min-height:44px}
+.google-signin{display:flex;justify-content:center;min-height:44px;width:100%;overflow:hidden}
+.google-signin iframe{max-width:100%}
