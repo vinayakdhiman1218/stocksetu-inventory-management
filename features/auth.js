@@ -73,11 +73,15 @@ async function setupGoogleSignIn(flow) {
   const button = document.querySelector(`#google-button-${flow}`);
   if (!section || !button) return;
   try {
-    const configResponse = await fetch(`${API_BASE_URL}/auth/google/config`);
+    // Fetch the backend client ID and Google Identity Services library together.
+    // Serial loading made the button wait for two separate network round trips.
+    const [configResponse] = await Promise.all([
+      fetch(`${API_BASE_URL}/auth/google/config`),
+      loadGoogleIdentityScript(),
+    ]);
     if (!configResponse.ok) return;
     const config = await configResponse.json();
     if (!config.client_id) return;
-    await loadGoogleIdentityScript();
     if (!section.isConnected || !window.google?.accounts?.id) return;
 
     window.stockSetuGoogleFlow = flow;
