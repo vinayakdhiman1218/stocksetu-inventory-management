@@ -1,5 +1,6 @@
 /* auth feature module. */
 let googleIdentityScriptPromise;
+let googleClientConfigPromise;
 
 function loadGoogleIdentityScript() {
   if (window.google?.accounts?.id) return Promise.resolve();
@@ -10,11 +11,35 @@ function loadGoogleIdentityScript() {
       script.async = true;
       script.defer = true;
       script.onload = resolve;
-      script.onerror = () => reject(new Error('Google sign-in could not load. Check your connection and try again.'));
+      script.onerror = () => {
+        googleIdentityScriptPromise = null;
+        reject(new Error('Google sign-in could not load. Check your connection and try again.'));
+      };
       document.head.appendChild(script);
     });
   }
   return googleIdentityScriptPromise;
+}
+
+function loadGoogleClientConfig() {
+  if (!googleClientConfigPromise) {
+    googleClientConfigPromise = fetch(`${API_BASE_URL}/auth/google/config`)
+      .then(response => {
+        if (!response.ok) throw new Error('Google sign-in configuration could not be loaded.');
+        return response.json();
+      })
+      .catch(error => {
+        googleClientConfigPromise = null;
+        throw error;
+      });
+  }
+  return googleClientConfigPromise;
+}
+
+function preloadGoogleSignIn() {
+  // Start both network requests with the app shell so the button is ready
+  // by the time the user opens login or signup.
+  Promise.allSettled([loadGoogleClientConfig(), loadGoogleIdentityScript()]);
 }
 
 function loadAppleIdentityScript() {
@@ -73,14 +98,10 @@ async function setupGoogleSignIn(flow) {
   const button = document.querySelector(`#google-button-${flow}`);
   if (!section || !button) return;
   try {
-    // Fetch the backend client ID and Google Identity Services library together.
-    // Serial loading made the button wait for two separate network round trips.
-    const [configResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/auth/google/config`),
+    const [config] = await Promise.all([
+      loadGoogleClientConfig(),
       loadGoogleIdentityScript(),
     ]);
-    if (!configResponse.ok) return;
-    const config = await configResponse.json();
     if (!config.client_id) return;
     if (!section.isConnected || !window.google?.accounts?.id) return;
 

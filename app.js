@@ -407,4 +407,5 @@ function route(){
 }
 window.addEventListener('hashchange',route);
 root.addEventListener('click',event=>{if(event.target.closest('[data-action="close-modal"]'))closeModal();});
+preloadGoogleSignIn();
 route();
