@@ -20,3 +20,6 @@ brag-output*
 
 # macOS
 .DS_Store
+
+# Video ad output
+video-ad*
