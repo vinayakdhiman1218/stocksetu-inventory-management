@@ -16,7 +16,7 @@ __pycache__/
 *.sqlite3
 
 # Brag video output
-brag-output/
+brag-output*
 
 # macOS
 .DS_Store
