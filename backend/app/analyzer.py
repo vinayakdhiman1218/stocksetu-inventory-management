@@ -274,57 +274,118 @@ def _build_advice(**ctx):
 OWNER_DEFAULT = "Vinayak Dhiman"
 
 
+def detect_language(text):
+    """Return 'hi' for Devanagari (Hindi) input, else 'hinglish'."""
+    if any("\u0900" <= ch <= "\u097f" for ch in (text or "")):
+        return "hi"
+    return "hinglish"
+
+
 def converse(question, owner_name=OWNER_DEFAULT, product_count=0):
-    """Handle normal chatbot small talk without leaking internal data."""
+    """Handle normal chatbot small talk in Hindi (Devanagari) or Hinglish."""
     q = (question or "").strip().lower()
+    lang = detect_language(question)
     if not q:
         return None
-    greetings = {"hey", "hi", "hello", "namaste", "hii", "hiii", "hey there", "hello there", "yo", "hola"}
-    if q in greetings or q.startswith("hey ") or q.startswith("hi ") or q.startswith("hello "):
+
+    greetings = {"hey", "hi", "hello", "namaste", "hii", "hiii", "hey there", "hello there", "yo", "hola", "नमस्ते", "हाय", "हेलो"}
+    if q in greetings or q.startswith("hey ") or q.startswith("hi ") or q.startswith("hello ") or q.startswith("namaste"):
+        if lang == "hi":
+            return (
+                f"नमस्ते! मैं StockSathi हूँ — {owner_name} का AI साथी। "
+                "कोई product ka naam likho, main uske stock, kharid, bikri aur galtiyan records se bataunga."
+            )
         return (
             f"Hey! Main StockSathi hoon — {owner_name} ke shop ka AI saathi. "
             "Koi product ka naam likh kar poochho, main uske stock, kharid, bikri aur galtiyan records se bataunga."
         )
-    if any(phrase in q for phrase in ("how are you", "kaise ho", "kya haal", "how r u", "how are u")):
+
+    if any(phrase in q for phrase in ("how are you", "kaise ho", "kya haal", "how r u", "how are u", "कैसे हो", "क्या हाल")):
+        if lang == "hi":
+            return "Main theek hoon! Tumhare records padhne ke liye ready hoon. Kya poochhna hai?"
         return "Main theek hoon! Tumhare records padhne ke liye ready hoon. Kya poochhna hai?"
-    if any(phrase in q for phrase in ("your name", "tumhara naam", "who are you", "kaun ho", "what are you", "tu kaun")):
+
+    if any(phrase in q for phrase in ("your name", "tumhara naam", "who are you", "kaun ho", "what are you", "tu kaun", "तुम्हारा नाम", "कौन हो", "तू कौन")):
+        if lang == "hi":
+            return f"Main StockSathi hoon — {owner_name} ke shop ka AI saathi. Mera kaam hai inventory records se salah dena."
         return f"Main StockSathi hoon — {owner_name} ke shop ka AI saathi. Mera kaam hai inventory records se salah dena."
-    if any(phrase in q for phrase in ("owner", "malik", "shop owner", "owner name", "malik ka naam")):
+
+    if any(phrase in q for phrase in ("owner", "malik", "shop owner", "owner name", "malik ka naam", "मालिक", "owner")):
+        if lang == "hi":
+            return f"Is shop ka owner {owner_name} hai."
         return f"Is shop ka owner {owner_name} hai."
-    if any(phrase in q for phrase in ("help", "kya kar", "what can", "capabilities", "madad", "sahayata")):
+
+    if any(phrase in q for phrase in ("help", "kya kar", "what can", "capabilities", "madad", "sahayata", "मदद", "क्या कर")):
+        if lang == "hi":
+            return (
+                "Main ye kar sakta hoon: kisi product ka stock kitne din chalega, is mahine kharidna chahiye ya nahi, "
+                "margin, galtiyan, aur reorder suggestion. Product ka naam likh kar poochho, jaise 'Cotton Shirt ke baare me btao'."
+            )
         return (
             "Main ye kar sakta hoon: kisi product ka stock kitne din chalega, is mahine kharidna chahiye ya nahi, "
             "margin, galtiyan, aur reorder suggestion. Product ka naam likh kar poochho, jaise 'Cotton Shirt ke baare me btao'."
         )
-    if q in {"thanks", "thank you", "shukriya", "dhanyavad", "thank u", "thx"}:
+
+    if q in {"thanks", "thank you", "shukriya", "dhanyavad", "thank u", "thx", "धन्यवाद", "शुक्रिया"}:
+        if lang == "hi":
+            return "Khushi hui madad karke! Aur kuch poochhna ho toh bolo."
         return "Khushi hui madad karke! Aur kuch poochhna ho toh bolo."
-    if q in {"bye", "goodbye", "alvida", "exit", "quit", "band karo"}:
+
+    if q in {"bye", "goodbye", "alvida", "exit", "quit", "band karo", "बाय", "अलविदा"}:
+        if lang == "hi":
+            return "Bye! Shop sambhalte raho. Phir milte hain."
         return "Bye! Shop sambhalte raho. Phir milte hain."
-    if any(phrase in q for phrase in ("who made you", "kisne banaya", "creator", "developer")):
+
+    if any(phrase in q for phrase in ("who made you", "kisne banaya", "creator", "developer", "किसने बनाया", "creator")):
+        if lang == "hi":
+            return f"Main {owner_name} ke liye banaya gaya hoon — StockSetu ka AI saathi."
         return f"Main {owner_name} ke liye banaya gaya hoon — StockSetu ka AI saathi."
+
     return None
 
 
 def ask(question, analysis, owner_name=OWNER_DEFAULT):
-    """Route a shopkeeper's Hinglish question to the right part of the analysis."""
+    """Route a shopkeeper's Hindi/Hinglish question to the right part of the analysis."""
     q = (question or "").strip().lower()
+    lang = detect_language(question)
 
-    if any(word in q for word in ("galti", "galat", "problem", "mistake", "warning", "issue", "dhyan", "check", "sahi")):
+    # Mistakes / warnings
+    if any(word in q for word in ("galti", "galat", "problem", "mistake", "warning", "issue", "dhyan", "check", "sahi", "गलती", "समस्या", "ध्यान")):
         if analysis["warnings"]:
+            if lang == "hi":
+                return "Dhyaan dein:\n" + "\n".join(f"- {line}" for line in analysis["warnings"])
             return "Dhyaan dein:\n" + "\n".join(f"- {line}" for line in analysis["warnings"])
+        if lang == "hi":
+            return f"Badhiya! {analysis['name']} ke records me abhi koi badi galti nahi dikhti. Stock level {analysis['verdict_label'].lower()} hai."
         return f"Badhiya! {analysis['name']} ke records me abhi koi badi galti nahi dikhti. Stock level {analysis['verdict_label'].lower()} hai."
 
-    if any(word in q for word in ("khatam", "kab", "kitne din", "sell", "bik", "bach", "expire", "kab tak")):
+    # Stock duration
+    if any(word in q for word in ("khatam", "kab", "kitne din", "sell", "bik", "bach", "expire", "kab tak", "खत्म", "कब", "कितने दिन", "बिक", "बच")):
         days = analysis["stock_days_left"]
         rate = analysis["daily_rate"]
         if days is None:
+            if lang == "hi":
+                return f"{analysis['name']} ka abhi reliable demand nahi pata — pehle kuch bikri record karo. Abhi stock {analysis['quantity']} {analysis['unit']} hai."
             return f"{analysis['name']} ka abhi reliable demand nahi pata — pehle kuch bikri record karo. Abhi stock {analysis['quantity']} {analysis['unit']} hai."
+        if lang == "hi":
+            return (
+                f"{analysis['name']}: {analysis['quantity']} {analysis['unit']} bache aur maang {_rate_text(rate, analysis['unit'])}. "
+                f"Matlab stock ~{days} din chalega. Uske baad reorder zaroori ho jayega."
+            )
         return (
             f"{analysis['name']}: {analysis['quantity']} {analysis['unit']} bache aur maang {_rate_text(rate, analysis['unit'])}. "
             f"Matlab stock ~{days} din chalega. Uske baad reorder zaroori ho jayega."
         )
 
-    if any(word in q for word in ("kharid", "purchase", "order", "mahin", "month", "reorder", "replenish", "buy")):
+    # Buy / reorder
+    if any(word in q for word in ("kharid", "purchase", "order", "mahin", "month", "reorder", "replenish", "buy", "खरीद", "ऑर्डर", "महीना", "reorder")):
+        if lang == "hi":
+            return (
+                f"{analysis['name']} ke liye salah: abhi {analysis['quantity']} {analysis['unit']} hain. "
+                f"{analysis['verdict_label']}"
+                + (f" — suggested order {analysis['suggested_order']} {analysis['unit']}." if analysis["suggested_order"] else ".")
+                + " Poora readout niche hai."
+            )
         return (
             f"{analysis['name']} ke liye salah: abhi {analysis['quantity']} {analysis['unit']} hain. "
             f"{analysis['verdict_label']}"
@@ -332,12 +393,22 @@ def ask(question, analysis, owner_name=OWNER_DEFAULT):
             + " Poora readout niche hai."
         )
 
-    if any(word in q for word in ("margin", "profit", "fayda", "kamai", "price", "daam", "rate")):
+    # Margin / price
+    if any(word in q for word in ("margin", "profit", "fayda", "kamai", "price", "daam", "rate", "मार्जिन", "profit", "फायदा", "कमाई", "दाम", "कीमत")):
         if analysis["margin_pct"] is None:
+            if lang == "hi":
+                return "Margin nahi nikal paya — product me kharid price ya bechne ka daam missing hai. Wo pehle set kar do."
             return "Margin nahi nikal paya — product me kharid price ya bechne ka daam missing hai. Wo pehle set kar do."
+        if lang == "hi":
+            return (
+                f"{analysis['name']} par har piece {_amount_inr(analysis['margin_per_piece'])} fayda hai "
+                f"(~{analysis['margin_pct']:.0f}% margin). Bechne ka daam vs kharid price check kar lena."
+            )
         return (
             f"{analysis['name']} par har piece {_amount_inr(analysis['margin_per_piece'])} fayda hai "
             f"(~{analysis['margin_pct']:.0f}% margin). Bechne ka daam vs kharid price check kar lena."
         )
 
+    if lang == "hi":
+        return analysis["summary"] + ("\n" + "\n".join(f"- {line}" for line in analysis["advice"]) if analysis["advice"] else "")
     return analysis["summary"] + ("\n" + "\n".join(f"- {line}" for line in analysis["advice"]) if analysis["advice"] else "")
