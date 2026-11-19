@@ -419,6 +419,17 @@ def assistant_llm(payload: schemas.AssistantLLM, db: Session = Depends(get_db), 
     )
     user_prompt = "Product data: " + json.dumps(safe, ensure_ascii=False) + "\\n\\nQuestion: " + question
 
+    api_key = (payload.api_key or "").strip()
+    if not api_key:
+        env_name = {
+            "groq": "GROQ_API_KEY",
+            "grok": "GROK_API_KEY",
+            "openai": "OPENAI_API_KEY",
+        }[payload.provider]
+        api_key = (os.getenv(env_name) or os.getenv("STOCKSETU_LLM_API_KEY") or "").strip()
+    if not api_key:
+        raise HTTPException(status_code=400, detail=f"API key missing. Set {env_name} in backend/.env or paste key in StockSathi settings.")
+
     endpoint, default_model = _LLM_ENDPOINTS[payload.provider]
     model = payload.model or default_model
     body = {
@@ -435,7 +446,7 @@ def assistant_llm(payload: schemas.AssistantLLM, db: Session = Depends(get_db), 
         data=json.dumps(body).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
-            "Authorization": "Bearer " + payload.api_key.strip(),
+            "Authorization": "Bearer " + api_key,
         },
         method="POST",
     )

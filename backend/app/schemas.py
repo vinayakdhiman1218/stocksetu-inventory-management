@@ -39,7 +39,7 @@ class AssistantAsk(BaseModel):
 class AssistantLLM(BaseModel):
     question: str = Field(default="", max_length=500)
     product_id: int | None = None
-    api_key: str = Field(min_length=8, max_length=256)
+    api_key: str | None = Field(default=None, max_length=256)
     provider: str = Field(default="groq", pattern="^(groq|openai|grok)$")
     model: str | None = None
 
