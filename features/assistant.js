@@ -43,26 +43,8 @@ function assistantPage() {
       <div class="assistant-head">
         <i class="assistant-mark">${icon('spark')}</i>
         <div><h2>StockSathi</h2><p>Chatbot · sirf tumhare records se</p></div>
-        <span class="assistant-status"><i></i> ${aiSettings().enabled ? "AI mode" : "rule mode"}</span>
+        <span class="assistant-status"><i></i> online</span>
       </div>
-      <details class="assistant-settings">
-        <summary>⚙ AI mode settings</summary>
-        <div class="assistant-settings-body">
-          <label class="assistant-toggle"><input type="checkbox" id="ai-mode-toggle" ${aiSettings().enabled ? "checked" : ""}> Use AI (LLM) for answers</label>
-          <div class="assistant-settings-row">
-            <select id="ai-provider">
-              <option value="pollinations" ${aiSettings().provider === "pollinations" ? "selected" : ""}>Pollinations (free, no key)</option>
-              <option value="ollama" ${aiSettings().provider === "ollama" ? "selected" : ""}>Ollama (local, qwen2.5:0.5b)</option>
-              <option value="groq" ${aiSettings().provider === "groq" ? "selected" : ""}>Groq (Llama 3.1 8B, free)</option>
-              <option value="grok" ${aiSettings().provider === "grok" ? "selected" : ""}>Grok (xAI, grok-2)</option>
-              <option value="openai" ${aiSettings().provider === "openai" ? "selected" : ""}>OpenAI (gpt-4o-mini)</option>
-            </select>
-            <input id="ai-key" type="password" placeholder="Paste API key" value="${escapeHTML(aiSettings().key)}" autocomplete="off">
-            <button type="button" class="btn btn-sm" data-action="save-ai-settings">${icon('check')} Save</button>
-          </div>
-          <p class="assistant-settings-note">Key sirf browser mein save hota hai. Rule-based fallback always available.</p>
-        </div>
-      </details>
       <div class="assistant-quick-row">${ASSISTANT_QUICK.map(q => `<button type="button" class="assistant-chip" data-action="assistant-quick" data-q="${escapeHTML(q)}">${escapeHTML(q)}</button>`).join("")}</div>
       <div class="assistant-chat" id="assistant-chat">${messages}</div>
       <form class="assistant-form" data-form="assistant">
@@ -110,12 +92,9 @@ async function askStockSathi(question) {
   appendAssistantMessage("user", text);
   if (input) input.value = "";
   assistantThinking();
-  const settings = aiSettings();
-  const useLlm = settings.enabled && settings.key;
-  const endpoint = useLlm ? "/assistant/llm" : "/assistant/ask";
-  const body = useLlm
-    ? { question: text, api_key: settings.key, provider: settings.provider }
-    : { question: text };
+  // Simple rule-based StockSathi (local, no external LLM).
+  const endpoint = "/assistant/ask";
+  const body = { question: text };
   try {
     const data = await apiRequest(endpoint, {
       method: "POST",
