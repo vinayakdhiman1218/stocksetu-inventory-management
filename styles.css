@@ -660,3 +660,16 @@ html[data-theme="dark"] .assistant-warnings{background:#2a241b;border-color:#4b3
 html[data-theme="dark"] .assistant-panel{background:var(--surface)}
 html[data-theme="dark"] .assistant-toolbar select,html[data-theme="dark"] .assistant-form input,html[data-theme="dark"] .assistant-chat,html[data-theme="dark"] .assistant-bubble{background:#202c26;border-color:#34463d;color:var(--ink)}
 html[data-theme="dark"] .assistant-msg.user .assistant-bubble{background:var(--accent);color:#fff}
+
+/* StockSathi AI mode settings */
+.assistant-settings{margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:#fbfcf9;padding:10px 12px}
+.assistant-settings summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--muted);list-style:none}
+.assistant-settings summary::-webkit-details-marker{display:none}
+.assistant-settings-body{display:grid;gap:8px;margin-top:10px}
+.assistant-toggle{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--ink)}
+.assistant-settings-row{display:flex;gap:8px;flex-wrap:wrap}
+.assistant-settings-row select,.assistant-settings-row input{height:38px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-size:12px}
+.assistant-settings-row select{min-width:150px}
+.assistant-settings-row input{flex:1;min-width:200px}
+.assistant-settings-note{margin:0;color:var(--muted);font-size:10px}
+html[data-theme="dark"] .assistant-settings,html[data-theme="dark"] .assistant-settings-row select,html[data-theme="dark"] .assistant-settings-row input{background:#202c26;border-color:#34463d;color:var(--ink)}

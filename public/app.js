@@ -308,6 +308,17 @@ function handleAction(button) {
   if(action==='new-sale')openSaleModal();
   if(action==='assistant-quick')askStockSathi(button.dataset.q);
   if(action==='open-assistant')openAssistant(id);
+  if(action==='save-ai-settings'){
+    const enabled=document.querySelector('#ai-mode-toggle')?.checked;
+    const provider=document.querySelector('#ai-provider')?.value||'groq';
+    const key=(document.querySelector('#ai-key')?.value||'').trim();
+    localStorage.setItem('stocksetu-ai-mode',enabled?'1':'0');
+    localStorage.setItem('stocksetu-ai-provider',provider);
+    localStorage.setItem('stocksetu-ai-key',key);
+    toast(enabled?'AI mode on.':'AI mode off.');
+    renderDashboard();
+    return;
+  }
   if(action==='edit-product')openProductModal(state.products.find(p=>p.id===id));
   
 if(action==='delete-product'){

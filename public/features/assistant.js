@@ -19,6 +19,14 @@ function assistantChat() {
   return state.assistantChat;
 }
 
+function aiSettings() {
+  return {
+    enabled: localStorage.getItem("stocksetu-ai-mode") === "1",
+    provider: localStorage.getItem("stocksetu-ai-provider") || "groq",
+    key: localStorage.getItem("stocksetu-ai-key") || "",
+  };
+}
+
 function assistantPage() {
   if (!state.products.length) {
     return `${pageHeader('StockSathi', 'Dukaan ka AI chatbot — stock, kharid aur galtiyan ek jagah.')}<section class="panel assistant-panel"><div class="table-empty">Pehle koi product add karo. Phir StockSathi uske records se salah de payega.</div></section>`;
@@ -35,8 +43,24 @@ function assistantPage() {
       <div class="assistant-head">
         <i class="assistant-mark">${icon('spark')}</i>
         <div><h2>StockSathi</h2><p>Chatbot · sirf tumhare records se</p></div>
-        <span class="assistant-status"><i></i> online</span>
+        <span class="assistant-status"><i></i> ${aiSettings().enabled ? "AI mode" : "rule mode"}</span>
       </div>
+      <details class="assistant-settings">
+        <summary>⚙ AI mode settings</summary>
+        <div class="assistant-settings-body">
+          <label class="assistant-toggle"><input type="checkbox" id="ai-mode-toggle" ${aiSettings().enabled ? "checked" : ""}> Use AI (LLM) for answers</label>
+          <div class="assistant-settings-row">
+            <select id="ai-provider">
+              <option value="groq" ${aiSettings().provider === "groq" ? "selected" : ""}>Groq (Llama 3.1 8B, free)</option>
+              <option value="grok" ${aiSettings().provider === "grok" ? "selected" : ""}>Grok (xAI, grok-2)</option>
+              <option value="openai" ${aiSettings().provider === "openai" ? "selected" : ""}>OpenAI (gpt-4o-mini)</option>
+            </select>
+            <input id="ai-key" type="password" placeholder="Paste API key" value="${escapeHTML(aiSettings().key)}" autocomplete="off">
+            <button type="button" class="btn btn-sm" data-action="save-ai-settings">${icon('check')} Save</button>
+          </div>
+          <p class="assistant-settings-note">Key sirf browser mein save hota hai. Rule-based fallback always available.</p>
+        </div>
+      </details>
       <div class="assistant-quick-row">${ASSISTANT_QUICK.map(q => `<button type="button" class="assistant-chip" data-action="assistant-quick" data-q="${escapeHTML(q)}">${escapeHTML(q)}</button>`).join("")}</div>
       <div class="assistant-chat" id="assistant-chat">${messages}</div>
       <form class="assistant-form" data-form="assistant">
@@ -84,10 +108,16 @@ async function askStockSathi(question) {
   appendAssistantMessage("user", text);
   if (input) input.value = "";
   assistantThinking();
+  const settings = aiSettings();
+  const useLlm = settings.enabled && settings.key;
+  const endpoint = useLlm ? "/assistant/llm" : "/assistant/ask";
+  const body = useLlm
+    ? { question: text, api_key: settings.key, provider: settings.provider }
+    : { question: text };
   try {
-    const data = await apiRequest("/assistant/ask", {
+    const data = await apiRequest(endpoint, {
       method: "POST",
-      body: JSON.stringify({ question: text }),
+      body: JSON.stringify(body),
     });
     removeAssistantThinking();
     const answer = data && data.answer ? data.answer : "Jawab nahi mila.";

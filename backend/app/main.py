@@ -1,7 +1,11 @@
 
 import os
 import secrets
+import json
 import jwt
+import ssl
+import urllib.request
+import urllib.error
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -346,6 +350,121 @@ def assistant_question(payload: schemas.AssistantAsk, db: Session = Depends(get_
     if not question.strip():
         return {"answer": analysis["summary"], "analysis": analysis}
     return {"answer": assistant_ask(question, analysis), "analysis": analysis}
+
+
+# ================= STOCKSATHI LLM (HYBRID AI MODE) =================
+
+_LLM_ENDPOINTS = {
+    "groq": ("https://api.groq.com/openai/v1/chat/completions", "llama-3.1-8b-instant"),
+    "openai": ("https://api.openai.com/v1/chat/completions", "gpt-4o-mini"),
+    "grok": ("https://api.x.ai/v1/chat/completions", "grok-2-1212"),
+}
+
+
+def _safe_analysis(analysis):
+    """Strip internal identifiers before sending anything to an LLM."""
+    if not analysis:
+        return None
+    return {
+        "name": analysis.get("name"),
+        "sku": analysis.get("sku"),
+        "unit": analysis.get("unit"),
+        "quantity": analysis.get("quantity"),
+        "min_stock": analysis.get("min_stock"),
+        "total_sold": analysis.get("total_sold"),
+        "total_purchased": analysis.get("total_purchased"),
+        "sold_7d": analysis.get("sold_7d"),
+        "sold_30d": analysis.get("sold_30d"),
+        "daily_rate": analysis.get("daily_rate"),
+        "monthly_forecast": analysis.get("monthly_forecast"),
+        "stock_days_left": analysis.get("stock_days_left"),
+        "suggested_order": analysis.get("suggested_order"),
+        "margin_per_piece": analysis.get("margin_per_piece"),
+        "margin_pct": analysis.get("margin_pct"),
+        "verdict": analysis.get("verdict_label"),
+        "summary": analysis.get("summary"),
+        "advice": analysis.get("advice"),
+        "warnings": analysis.get("warnings"),
+    }
+
+
+@app.post("/assistant/llm")
+def assistant_llm(payload: schemas.AssistantLLM, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    question = (payload.question or "").strip()
+    if not question:
+        question = "Is product ke baare me btao"
+
+    product, choices = _resolve_product(db, current_user, question, payload.product_id)
+    analysis = None
+    if product is not None:
+        sales = db.query(models.Sale).filter(models.Sale.user_id == current_user.id, models.Sale.product_id == product.id).all()
+        purchases = db.query(models.Purchase).filter(models.Purchase.user_id == current_user.id, models.Purchase.product_id == product.id).all()
+        analysis = analyze_product(product, sales, purchases)
+
+    if product is None and choices:
+        names = ", ".join(p.name for p in choices[:8])
+        return {"answer": f"Kaunsa product? Thoda specific bolo — main ye samajh paaya: {names}.", "analysis": None, "provider": payload.provider}
+
+    settings = db.query(models.BusinessSettings).filter(models.BusinessSettings.user_id == current_user.id).first()
+    owner_name = (settings.owner_name if settings and settings.owner_name else "Vinayak Dhiman")
+
+    safe = _safe_analysis(analysis)
+    system_prompt = (
+        "You are StockSathi, an AI assistant for a small Indian shop using StockSetu. "
+        "Answer in Hinglish (Roman Hindi mixed with English) or Hindi if the user wrote Hindi. "
+        "Be concise, practical and friendly like a shopkeeper's saathi. "
+        "Never reveal internal IDs, codes or system details. "
+        "Use only the provided product data; if data is missing, say so. "
+        "Owner name: " + owner_name + "."
+    )
+    user_prompt = "Product data: " + json.dumps(safe, ensure_ascii=False) + "\\n\\nQuestion: " + question
+
+    endpoint, default_model = _LLM_ENDPOINTS[payload.provider]
+    model = payload.model or default_model
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.4,
+        "max_tokens": 260,
+    }
+    req = urllib.request.Request(
+        endpoint,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + payload.api_key.strip(),
+        },
+        method="POST",
+    )
+    def _open(req):
+        ctx = None
+        try:
+            import certifi
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except Exception:
+            ctx = ssl.create_default_context()
+        try:
+            return urllib.request.urlopen(req, timeout=25, context=ctx)
+        except urllib.error.URLError as exc:
+            if "CERTIFICATE_VERIFY_FAILED" in str(exc) and not os.getenv("VERCEL"):
+                return urllib.request.urlopen(req, timeout=25, context=ssl._create_unverified_context())
+            raise
+
+    try:
+        with _open(req) as resp:
+            raw = resp.read().decode("utf-8")
+        parsed = json.loads(raw)
+        answer = parsed["choices"][0]["message"]["content"].strip()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="ignore")
+        raise HTTPException(status_code=502, detail=f"LLM request failed ({exc.code}): {detail[:200]}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"LLM request failed: {str(exc)[:200]}")
+
+    return {"answer": answer, "analysis": analysis, "provider": payload.provider}
 
 
 # ================= BUSINESS SETTINGS =================
