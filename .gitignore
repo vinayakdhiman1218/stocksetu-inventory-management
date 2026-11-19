@@ -39,3 +39,6 @@ remotion-neon*
 
 # Remotion theme output
 remotion-theme*
+
+# Generated voiceover
+remotion-video/public/assets/voiceover.wav

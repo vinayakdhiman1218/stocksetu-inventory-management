@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
 from . import models, schemas
-from .analyzer import analyze_product, ask as assistant_ask
+from .analyzer import analyze_product, ask as assistant_ask, converse as assistant_converse, OWNER_DEFAULT
 from .auth import (
     hash_password,
     verify_password,
@@ -313,7 +313,18 @@ def assistant_analyze(product_id: int, db: Session = Depends(get_db), current_us
 
 @app.post("/assistant/ask")
 def assistant_question(payload: schemas.AssistantAsk, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    product, choices = _resolve_product(db, current_user, payload.question or "", payload.product_id)
+    question = (payload.question or "").strip()
+    if not question:
+        question = "help"
+    settings = db.query(models.BusinessSettings).filter(models.BusinessSettings.user_id == current_user.id).first()
+    owner_name = (settings.owner_name if settings and settings.owner_name else OWNER_DEFAULT)
+
+    # Normal chatbot small talk first — no internal codes, no product required.
+    conversational = assistant_converse(question, owner_name, db.query(models.Product).filter(models.Product.user_id == current_user.id).count())
+    if conversational is not None:
+        return {"answer": conversational, "analysis": None}
+
+    product, choices = _resolve_product(db, current_user, question, payload.product_id)
     if product is None:
         if not choices:
             return {"answer": "Pehle koi product add karo, phir main uske records se jawab de sakta hoon.", "analysis": None}

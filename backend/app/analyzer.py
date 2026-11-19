@@ -271,7 +271,41 @@ def _build_advice(**ctx):
     return lines
 
 
-def ask(question, analysis):
+OWNER_DEFAULT = "Vinayak Dhiman"
+
+
+def converse(question, owner_name=OWNER_DEFAULT, product_count=0):
+    """Handle normal chatbot small talk without leaking internal data."""
+    q = (question or "").strip().lower()
+    if not q:
+        return None
+    greetings = {"hey", "hi", "hello", "namaste", "hii", "hiii", "hey there", "hello there", "yo", "hola"}
+    if q in greetings or q.startswith("hey ") or q.startswith("hi ") or q.startswith("hello "):
+        return (
+            f"Hey! Main StockSathi hoon — {owner_name} ke shop ka AI saathi. "
+            "Koi product ka naam likh kar poochho, main uske stock, kharid, bikri aur galtiyan records se bataunga."
+        )
+    if any(phrase in q for phrase in ("how are you", "kaise ho", "kya haal", "how r u", "how are u")):
+        return "Main theek hoon! Tumhare records padhne ke liye ready hoon. Kya poochhna hai?"
+    if any(phrase in q for phrase in ("your name", "tumhara naam", "who are you", "kaun ho", "what are you", "tu kaun")):
+        return f"Main StockSathi hoon — {owner_name} ke shop ka AI saathi. Mera kaam hai inventory records se salah dena."
+    if any(phrase in q for phrase in ("owner", "malik", "shop owner", "owner name", "malik ka naam")):
+        return f"Is shop ka owner {owner_name} hai."
+    if any(phrase in q for phrase in ("help", "kya kar", "what can", "capabilities", "madad", "sahayata")):
+        return (
+            "Main ye kar sakta hoon: kisi product ka stock kitne din chalega, is mahine kharidna chahiye ya nahi, "
+            "margin, galtiyan, aur reorder suggestion. Product ka naam likh kar poochho, jaise 'Cotton Shirt ke baare me btao'."
+        )
+    if q in {"thanks", "thank you", "shukriya", "dhanyavad", "thank u", "thx"}:
+        return "Khushi hui madad karke! Aur kuch poochhna ho toh bolo."
+    if q in {"bye", "goodbye", "alvida", "exit", "quit", "band karo"}:
+        return "Bye! Shop sambhalte raho. Phir milte hain."
+    if any(phrase in q for phrase in ("who made you", "kisne banaya", "creator", "developer")):
+        return f"Main {owner_name} ke liye banaya gaya hoon — StockSetu ka AI saathi."
+    return None
+
+
+def ask(question, analysis, owner_name=OWNER_DEFAULT):
     """Route a shopkeeper's Hinglish question to the right part of the analysis."""
     q = (question or "").strip().lower()
 
