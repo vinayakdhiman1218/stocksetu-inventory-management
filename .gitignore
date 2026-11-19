@@ -27,3 +27,6 @@ video-ad*
 # Remotion
 remotion-video/node_modules/
 remotion-ad*
+
+# Combined ad output
+combined-ad*
