@@ -32,6 +32,10 @@ class SaleCreate(BaseModel):
     product_id: int = Field(gt=0)
     quantity: int = Field(gt=0)
 
+class AssistantAsk(BaseModel):
+    question: str = Field(default="", max_length=500)
+    product_id: int = Field(gt=0)
+
 
 class UserRegister(BaseModel):
     email: str = Field(min_length=3, max_length=254)

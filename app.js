@@ -244,6 +244,7 @@ function renderPage(page) {
   if (page === 'Customers') return customersPage();
   if (page === 'Suppliers') return suppliersPage();
   if (page === 'Reports') return reportsPage();
+  if (page === 'StockSathi') return assistantPage();
   if (page === 'Settings') return settingsPage();
   return overviewPage();
 }
@@ -276,6 +277,7 @@ function bindDashboard() {
   root.querySelector('#customer-search')?.addEventListener('input',event=>{const q=event.target.value.toLowerCase();root.querySelector('#customer-rows').innerHTML=customerRows(state.customers.filter(c=>`${c.name} ${c.phone} ${c.email}`.toLowerCase().includes(q)));});
   root.querySelector('#supplier-search')?.addEventListener('input',event=>{const q=event.target.value.toLowerCase();root.querySelector('#supplier-rows').innerHTML=supplierRows(state.suppliers.filter(s=>`${s.name} ${s.phone} ${s.email}`.toLowerCase().includes(q)));});
   root.querySelector('#movement-search')?.addEventListener('input',event=>{const q=event.target.value.toLowerCase();root.querySelector('#movement-rows').innerHTML=movementRows(state.movements.filter(m=>`${m.product} ${m.sku} ${m.reference} ${m.type} ${m.note||''}`.toLowerCase().includes(q)));});
+  if (activePage === 'StockSathi') { root.querySelector('#assistant-product')?.addEventListener('change',()=>askStockSathi('')); askStockSathi(''); }
   root.querySelectorAll('form').forEach(form=>form.addEventListener('submit',handleForm));
   root.querySelector('[data-action="period"]')?.addEventListener('change',event=>{chartPeriod=Number(event.target.value);drawDashboardChart();toast(`Showing sales for ${event.target.selectedOptions[0].text.toLowerCase()}.`);});
 }
@@ -304,6 +306,8 @@ function handleAction(button) {
   }
   if(action==='add-product')openProductModal();
   if(action==='new-sale')openSaleModal();
+  if(action==='assistant-quick')askStockSathi(button.dataset.q);
+  if(action==='open-assistant')openAssistant(id);
   if(action==='edit-product')openProductModal(state.products.find(p=>p.id===id));
   
 if(action==='delete-product'){
@@ -373,6 +377,7 @@ async function handleForm(event) {
   if(type==='adjustment')return handleAdjustmentForm(form,data,type);
   if(type==='return')return handleReturnForm(form,data,type);
   if(type==='customer'||type==='supplier')return handleContactForm(form,data,type);
+  if(type==='assistant'){askStockSathi(data.question);return;}
 }
 
 function saveAll(keys){keys.forEach(saveStore);}

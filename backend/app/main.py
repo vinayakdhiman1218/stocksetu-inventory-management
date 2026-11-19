@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
 from . import models, schemas
+from .analyzer import analyze_product, ask as assistant_ask
 from .auth import (
     hash_password,
     verify_password,
@@ -40,10 +41,12 @@ with engine.begin() as connection:
     ):
         if column_name not in product_columns:
             connection.execute(text(f"ALTER TABLE products ADD COLUMN {column_name} {definition}"))
-    for table_name in ("suppliers", "purchases", "sales"):
+    for table_name in ("suppliers", "purchases", "sales", "products"):
         columns = {column["name"] for column in inspect(engine).get_columns(table_name)}
-        if "user_id" not in columns:
+        if "user_id" not in columns and table_name != "products":
             connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+        if "created_at" not in columns:
+            connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE"))
         connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
     connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
     user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
@@ -100,7 +103,7 @@ def add_product(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    new_product = models.Product(**product.model_dump(), user_id=current_user.id)
+    new_product = models.Product(**product.model_dump(), user_id=current_user.id, created_at=datetime.now(timezone.utc))
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
@@ -205,7 +208,7 @@ def add_purchase(purchase: schemas.PurchaseCreate, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="Supplier not found")
     total = purchase.quantity * purchase.unit_cost
     product.quantity += purchase.quantity
-    new_purchase = models.Purchase(user_id=current_user.id, product_id=product.id, supplier_id=supplier.id, quantity=purchase.quantity, total_cost=total)
+    new_purchase = models.Purchase(user_id=current_user.id, product_id=product.id, supplier_id=supplier.id, quantity=purchase.quantity, total_cost=total, created_at=datetime.now(timezone.utc))
     db.add(new_purchase)
     db.commit()
     db.refresh(new_purchase)
@@ -227,7 +230,7 @@ def add_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db), current_us
         raise HTTPException(status_code=400, detail="Not enough stock available")
     total = sale.quantity * product.selling_price
     product.quantity -= sale.quantity
-    new_sale = models.Sale(user_id=current_user.id, product_id=product.id, quantity=sale.quantity, total_amount=total)
+    new_sale = models.Sale(user_id=current_user.id, product_id=product.id, quantity=sale.quantity, total_amount=total, created_at=datetime.now(timezone.utc))
     db.add(new_sale)
     db.commit()
     db.refresh(new_sale)
@@ -251,6 +254,51 @@ def get_dashboard(db: Session = Depends(get_db), current_user: models.User = Dep
 def get_low_stock_alerts(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     products = db.query(models.Product).filter(models.Product.user_id == current_user.id).all()
     return [{"id": product.id, "name": product.name, "quantity": product.quantity, "min_stock": product.min_stock} for product in products if product.quantity <= product.min_stock]
+
+
+# ================= STOCKSATHI (AI ASSISTANT) =================
+
+def _assistant_product(db, product_id, user):
+    return db.query(models.Product).filter(
+        models.Product.id == product_id,
+        models.Product.user_id == user.id,
+    ).first()
+
+
+@app.get("/assistant/analyze/{product_id}")
+def assistant_analyze(product_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    product = _assistant_product(db, product_id, current_user)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    sales = db.query(models.Sale).filter(
+        models.Sale.user_id == current_user.id,
+        models.Sale.product_id == product_id,
+    ).all()
+    purchases = db.query(models.Purchase).filter(
+        models.Purchase.user_id == current_user.id,
+        models.Purchase.product_id == product_id,
+    ).all()
+    return analyze_product(product, sales, purchases)
+
+
+@app.post("/assistant/ask")
+def assistant_question(payload: schemas.AssistantAsk, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    product = _assistant_product(db, payload.product_id, current_user)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    sales = db.query(models.Sale).filter(
+        models.Sale.user_id == current_user.id,
+        models.Sale.product_id == payload.product_id,
+    ).all()
+    purchases = db.query(models.Purchase).filter(
+        models.Purchase.user_id == current_user.id,
+        models.Purchase.product_id == payload.product_id,
+    ).all()
+    analysis = analyze_product(product, sales, purchases)
+    question = payload.question or ""
+    if not question.strip():
+        return {"answer": analysis["summary"], "analysis": analysis}
+    return {"answer": assistant_ask(question, analysis), "analysis": analysis}
 
 
 # ================= BUSINESS SETTINGS =================
@@ -325,7 +373,6 @@ def register_user(
     user: schemas.UserRegister,
     db: Session = Depends(get_db)
 ):
-    raise HTTPException(status_code=410, detail="Email/password signup is disabled. Continue with Google to create an account.")
     normalized_email = user.email.strip().casefold()
     existing_user = db.query(models.User).filter(
         func.lower(models.User.email) == normalized_email
@@ -402,7 +449,6 @@ def login_user(
     user: schemas.UserLogin,
     db: Session = Depends(get_db)
 ):
-    raise HTTPException(status_code=410, detail="Email/password login is disabled. Please sign in with Google.")
     normalized_email = user.email.strip().casefold()
     existing_user = db.query(models.User).filter(
         func.lower(models.User.email) == normalized_email

@@ -16,6 +16,7 @@ class Product(Base):
     selling_price = Column(Float)
     supplier = Column(String(160), nullable=False, default="")
     min_stock = Column(Integer, default=5)
+    created_at = Column(DateTime(timezone=True), nullable=True)
 
 class Supplier(Base):
     __tablename__ = "suppliers"
@@ -36,6 +37,7 @@ class Purchase(Base):
     supplier_id = Column(Integer, nullable=False)
     quantity = Column(Integer, nullable=False)
     total_cost = Column(Float, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=True)
 
 class Sale(Base):
     __tablename__ = "sales"
@@ -45,6 +47,7 @@ class Sale(Base):
     product_id = Column(Integer, nullable=False)
     quantity = Column(Integer, nullable=False)
     total_amount = Column(Float, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class User(Base):

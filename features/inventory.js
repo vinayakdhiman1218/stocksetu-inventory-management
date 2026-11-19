@@ -23,7 +23,7 @@ function filteredProducts() {
 
 function productRow(item) {
   const status = productStatus(item);
-  return `<tr><td><span class="table-product"><i class="stock-icon">${icon('box')}</i><span>${escapeHTML(item.name)}<small>${escapeHTML(item.category)}</small></span></span></td><td><span class="sku-tag">${escapeHTML(item.sku)}</span></td><td><b class="qty-value">${Number(item.quantity).toLocaleString('en-IN')}</b> <span class="muted-small">${escapeHTML(item.unit)}</span><small class="reorder-sub">Reorder at ${item.reorder}</small></td><td>${money(item.cost)}</td><td><b class="dark-value">${money(item.price)}</b></td><td><span class="badge ${status.className}">${status.text}</span></td><td class="action-cell">${rowMenu(item.id,[['edit-product','Edit product','pencil'],['delete-product','Delete product','trash',true]],`Actions for ${item.name}`)}</td></tr>`;
+  return `<tr><td><span class="table-product"><i class="stock-icon">${icon('box')}</i><span>${escapeHTML(item.name)}<small>${escapeHTML(item.category)}</small></span></span></td><td><span class="sku-tag">${escapeHTML(item.sku)}</span></td><td><b class="qty-value">${Number(item.quantity).toLocaleString('en-IN')}</b> <span class="muted-small">${escapeHTML(item.unit)}</span><small class="reorder-sub">Reorder at ${item.reorder}</small></td><td>${money(item.cost)}</td><td><b class="dark-value">${money(item.price)}</b></td><td><span class="badge ${status.className}">${status.text}</span></td><td class="action-cell">${rowMenu(item.id,[['open-assistant','Ask StockSathi','spark'],['edit-product','Edit product','pencil'],['delete-product','Delete product','trash',true]],`Actions for ${item.name}`)}</td></tr>`;
 }
 
 function openAdjustmentModal(){
