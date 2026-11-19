@@ -83,7 +83,8 @@ export const MyComponent: React.FC = () => {
       {show(frame, s2, s3) && (
         <Scene>
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-            <div style={{ fontSize: 14, letterSpacing: "0.22em", textTransform: "uppercase", color: brand.accent, fontWeight: 800, marginBottom: 18 }}>Before vs After</div>
+            <div style={{ fontSize: 14, letterSpacing: "0.22em", textTransform: "uppercase", color: brand.accent, fontWeight: 800, marginBottom: 10 }}>Before vs After</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 46, fontWeight: 800, letterSpacing: "-.05em", color: brand.ink, marginBottom: 24 }}>From chaos to clarity.</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 1fr", gap: 0, width: 1500, alignItems: "stretch" }}>
               <div style={{ border: `1px solid ${brand.muted}44`, borderRadius: 18, background: "#fff", padding: 26, boxShadow: "0 20px 60px rgba(24,57,38,.08)", opacity: fade(frame, s2 + 0.1, 0.6) }}>
                 <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: "#a36435", fontWeight: 800, marginBottom: 12 }}>Before</div>
@@ -136,6 +137,7 @@ export const MyComponent: React.FC = () => {
         <Scene>
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", opacity: Math.min(fade(frame, s3, 0.5), 1 - fade(frame, s4 - 0.5, 0.5)) }}>
             <div style={{ width: 1320, border: `1px solid ${brand.accent}33`, borderRadius: 20, background: "#fff", padding: 24, boxShadow: "0 24px 70px rgba(24,57,38,.12)" }}>
+              <div style={{ fontFamily: fontDisplay, fontSize: 30, letterSpacing: "-.05em", color: brand.ink, fontWeight: 700, marginBottom: 12 }}>Your business at a glance.</div>
               <div style={{ height: 44, borderBottom: `1px solid ${brand.accent}22`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", fontSize: 13, color: brand.muted }}>
                 <span>Workspace / Overview</span><span>Today</span>
               </div>
@@ -149,7 +151,7 @@ export const MyComponent: React.FC = () => {
                   ].map(([l, v, c, n]) => (
                     <div key={l} style={{ border: `1px solid ${c}33`, borderRadius: 10, padding: 12, background: brand.mint }}>
                       <small style={{ display: "block", color: brand.muted, fontSize: 10 }}>{l}</small>
-                      <b style={{ display: "block", marginTop: 6, fontFamily: fontDisplay, fontSize: 20, letterSpacing: "-.04em", color: c }}>{v}</b>
+                      <b style={{ display: "block", marginTop: 6, fontFamily: fontDisplay, fontSize: 22, letterSpacing: "-.04em", color: c }}>{v}</b>
                       <em style={{ display: "block", marginTop: 4, fontStyle: "normal", color: brand.muted, fontSize: 10, fontWeight: 600 }}>{n}</em>
                     </div>
                   ))}
@@ -182,7 +184,8 @@ export const MyComponent: React.FC = () => {
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/></svg>
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontFamily: fontDisplay, fontSize: 20, letterSpacing: "-.05em", color: brand.ink }}>StockSathi</h3>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 26, letterSpacing: "-.05em", color: brand.ink, fontWeight: 700, marginBottom: 8 }}>Ask your stock anything.</div>
+                  <h3 style={{ margin: 0, fontFamily: fontDisplay, fontSize: 18, letterSpacing: "-.05em", color: brand.ink }}>StockSathi</h3>
                   <p style={{ margin: "2px 0 0", color: brand.muted, fontSize: 11 }}>sirf tumhare records se</p>
                 </div>
               </div>
@@ -201,7 +204,7 @@ export const MyComponent: React.FC = () => {
                   const bg = type === "user" ? brand.accent : type === "warn" ? "#fff8f1" : brand.mint;
                   const tc = type === "user" ? "#fff" : brand.ink;
                   return (
-                    <div key={i} style={{ alignSelf: type === "user" ? "flex-end" : "flex-start", maxWidth: "88%", padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, background: bg, color: tc, border: `1px solid ${color}33`, opacity: o, transform: `translateY(${y}px)` }}>
+                    <div key={i} style={{ alignSelf: type === "user" ? "flex-end" : "flex-start", maxWidth: "88%", padding: "10px 12px", borderRadius: 10, fontSize: 14, lineHeight: 1.5, background: bg, color: tc, border: `1px solid ${color}33`, opacity: o, transform: `translateY(${y}px)` }}>
                       {text}
                     </div>
                   );
@@ -215,7 +218,7 @@ export const MyComponent: React.FC = () => {
                   ["Suggest order", "0 pieces", brand.accent],
                 ].map(([l, v, color]) => (
                   <div key={l} style={{ border: `1px solid ${color}33`, borderRadius: 8, padding: 8, background: brand.mint }}>
-                    <small style={{ display: "block", color: brand.muted, fontSize: 9 }}>{l}</small>
+                    <small style={{ display: "block", color: brand.muted, fontSize: 11 }}>{l}</small>
                     <b style={{ display: "block", marginTop: 3, fontFamily: fontDisplay, fontSize: 14, letterSpacing: "-.04em", color }}>{v}</b>
                   </div>
                 ))}
