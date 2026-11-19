@@ -51,7 +51,7 @@ export const MyComponent: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const s1 = 0, s2 = 3, s3 = 8, s4 = 13;
+  const s1 = 0, s2 = 3, s3 = 7, s4 = 11, s5 = 15;
 
   return (
     <AbsoluteFill style={{ background: `radial-gradient(circle at 78% 30%, ${brand.lime}55 0%, transparent 42%), linear-gradient(180deg,#fafbf8 0%, ${brand.paper} 100%)`, fontFamily: fontBody, color: brand.ink, overflow: "hidden" }}>
@@ -131,48 +131,69 @@ export const MyComponent: React.FC = () => {
         </Scene>
       )}
 
-      {/* Scene 3: dashboard + StockSathi */}
+      {/* Scene 3: dashboard */}
       {show(frame, s3, s4) && (
         <Scene>
-          <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 24, padding: "60px 80px", alignItems: "center" }}>
-            <div style={{ border: `1px solid ${brand.accent}33`, borderRadius: 18, background: "#fff", padding: 18, boxShadow: "0 20px 60px rgba(24,57,38,.1)" }}>
-              <div style={{ height: 40, borderBottom: `1px solid ${brand.accent}22`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", fontSize: 12, color: brand.muted }}>
+          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", opacity: Math.min(fade(frame, s3, 0.5), 1 - fade(frame, s4 - 0.5, 0.5)) }}>
+            <div style={{ width: 1320, border: `1px solid ${brand.accent}33`, borderRadius: 20, background: "#fff", padding: 24, boxShadow: "0 24px 70px rgba(24,57,38,.12)" }}>
+              <div style={{ height: 44, borderBottom: `1px solid ${brand.accent}22`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", fontSize: 13, color: brand.muted }}>
                 <span>Workspace / Overview</span><span>Today</span>
               </div>
-              <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ fontFamily: fontDisplay, fontSize: 20, letterSpacing: "-.05em", color: brand.ink, fontWeight: 700 }}>Good morning, Vinayak</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+              <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontFamily: fontDisplay, fontSize: 24, letterSpacing: "-.05em", color: brand.ink, fontWeight: 700 }}>Good morning, Vinayak</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
                   {[
-                    ["Sales recorded", "₹48,200", brand.accent],
-                    ["Products added", "128", brand.green],
-                    ["Outstanding", "₹6,400", "#a36435"],
-                  ].map(([l, v, c]) => (
-                    <div key={l} style={{ border: `1px solid ${c}33`, borderRadius: 9, padding: 8, background: brand.mint }}>
-                      <small style={{ display: "block", color: brand.muted, fontSize: 9 }}>{l}</small>
-                      <b style={{ display: "block", marginTop: 4, fontFamily: fontDisplay, fontSize: 16, letterSpacing: "-.04em", color: c }}>{v}</b>
+                    ["Sales recorded", "₹48,200", brand.accent, "This week"],
+                    ["Products added", "128", brand.green, "In catalogue"],
+                    ["Outstanding", "₹6,400", "#a36435", "Pending balance"],
+                  ].map(([l, v, c, n]) => (
+                    <div key={l} style={{ border: `1px solid ${c}33`, borderRadius: 10, padding: 12, background: brand.mint }}>
+                      <small style={{ display: "block", color: brand.muted, fontSize: 10 }}>{l}</small>
+                      <b style={{ display: "block", marginTop: 6, fontFamily: fontDisplay, fontSize: 20, letterSpacing: "-.04em", color: c }}>{v}</b>
+                      <em style={{ display: "block", marginTop: 4, fontStyle: "normal", color: brand.muted, fontSize: 10, fontWeight: 600 }}>{n}</em>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 6, border: `1px solid ${brand.accent}22`, borderRadius: 12, padding: 12, background: "#fff" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: brand.ink, marginBottom: 8 }}>Stock to watch</div>
+                  {[
+                    ["Cotton Shirt · M · Blue", "45 pieces", "In stock"],
+                    ["Jeans · 32", "10 pieces", "Low stock"],
+                  ].map(([name, qty, status]) => (
+                    <div key={name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${brand.accent}11` }}>
+                      <span style={{ fontSize: 12, color: brand.ink, fontWeight: 600 }}>{name}</span>
+                      <span style={{ fontSize: 11, color: brand.muted }}>{qty} · {status}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-            <div style={{ border: `1px solid ${brand.accent}33`, borderRadius: 18, background: "#fff", padding: 18, boxShadow: "0 20px 60px rgba(24,57,38,.1)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: brand.lime, display: "grid", placeItems: "center", color: "#173c2c" }}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/></svg>
+          </div>
+        </Scene>
+      )}
+
+      {/* Scene 4: StockSathi full screen */}
+      {show(frame, s4, s5) && (
+        <Scene>
+          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", opacity: Math.min(fade(frame, s4, 0.5), 1 - fade(frame, s5 - 0.5, 0.5)) }}>
+            <div style={{ width: 980, border: `1px solid ${brand.accent}33`, borderRadius: 20, background: "#fff", padding: 26, boxShadow: "0 24px 70px rgba(24,57,38,.12)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 11, background: brand.lime, display: "grid", placeItems: "center", color: "#173c2c" }}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/></svg>
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontFamily: fontDisplay, fontSize: 16, letterSpacing: "-.05em", color: brand.ink }}>StockSathi</h3>
-                  <p style={{ margin: "2px 0 0", color: brand.muted, fontSize: 10 }}>sirf tumhare records se</p>
+                  <h3 style={{ margin: 0, fontFamily: fontDisplay, fontSize: 20, letterSpacing: "-.05em", color: brand.ink }}>StockSathi</h3>
+                  <p style={{ margin: "2px 0 0", color: brand.muted, fontSize: 11 }}>sirf tumhare records se</p>
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 220 }}>
                 {[
                   ["user", "Is mahine kharido?"],
                   ["bot", "Stock theek hai — 45 pieces, ~84 din chalega."],
                   ["bot", "Maang ~0.5 pieces roz · suggested order 0 pieces."],
                   ["warn", "Dhyaan: pichle 7 din ki maang pichle 30 din se double hai."],
                 ].map(([type, text], i) => {
-                  const st = s3 + 0.4 + i * 0.35;
+                  const st = s4 + 0.3 + i * 0.35;
                   const p = spring({ frame: frame - st * FPS, fps, config: { damping: 12, stiffness: 140 } });
                   const o = interpolate(p, [0, 1], [0, 1]);
                   const y = interpolate(p, [0, 1], [12, 0]);
@@ -180,22 +201,22 @@ export const MyComponent: React.FC = () => {
                   const bg = type === "user" ? brand.accent : type === "warn" ? "#fff8f1" : brand.mint;
                   const tc = type === "user" ? "#fff" : brand.ink;
                   return (
-                    <div key={i} style={{ alignSelf: type === "user" ? "flex-end" : "flex-start", maxWidth: "88%", padding: "8px 10px", borderRadius: 10, fontSize: 11, lineHeight: 1.5, background: bg, color: tc, border: `1px solid ${color}33`, opacity: o, transform: `translateY(${y}px)` }}>
+                    <div key={i} style={{ alignSelf: type === "user" ? "flex-end" : "flex-start", maxWidth: "88%", padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5, background: bg, color: tc, border: `1px solid ${color}33`, opacity: o, transform: `translateY(${y}px)` }}>
                       {text}
                     </div>
                   );
                 })}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginTop: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 10 }}>
                 {[
                   ["Stock", "45 pieces", brand.accent],
                   ["Sold 30 din", "16 pieces", brand.green],
                   ["Maag / roz", "~0.5", "#a36435"],
                   ["Suggest order", "0 pieces", brand.accent],
                 ].map(([l, v, color]) => (
-                  <div key={l} style={{ border: `1px solid ${color}33`, borderRadius: 7, padding: 6, background: brand.mint }}>
-                    <small style={{ display: "block", color: brand.muted, fontSize: 8 }}>{l}</small>
-                    <b style={{ display: "block", marginTop: 2, fontFamily: fontDisplay, fontSize: 12, letterSpacing: "-.04em", color }}>{v}</b>
+                  <div key={l} style={{ border: `1px solid ${color}33`, borderRadius: 8, padding: 8, background: brand.mint }}>
+                    <small style={{ display: "block", color: brand.muted, fontSize: 9 }}>{l}</small>
+                    <b style={{ display: "block", marginTop: 3, fontFamily: fontDisplay, fontSize: 14, letterSpacing: "-.04em", color }}>{v}</b>
                   </div>
                 ))}
               </div>
@@ -205,7 +226,7 @@ export const MyComponent: React.FC = () => {
       )}
 
       {/* Scene 4: CTA */}
-      {show(frame, s4, 18) && (
+      {show(frame, s5, 18) && (
         <Scene>
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
