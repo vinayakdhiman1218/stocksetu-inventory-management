@@ -23,3 +23,7 @@ brag-output*
 
 # Video ad output
 video-ad*
+
+# Remotion
+remotion-video/node_modules/
+remotion-ad*
