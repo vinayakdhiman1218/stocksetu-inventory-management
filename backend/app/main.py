@@ -432,6 +432,10 @@ def assistant_llm(payload: schemas.AssistantLLM, db: Session = Depends(get_db), 
         endpoint = base + "/v1/chat/completions"
         default_model = "qwen2.5:0.5b"
         api_key = api_key or "ollama"
+    elif payload.provider == "pollinations":
+        endpoint = "https://text.pollinations.ai/openai"
+        default_model = "openai-fast"
+        api_key = api_key or "pollinations"
     else:
         api_key = (os.getenv(env_name) or os.getenv("STOCKSETU_LLM_API_KEY") or "").strip()
         if not api_key:

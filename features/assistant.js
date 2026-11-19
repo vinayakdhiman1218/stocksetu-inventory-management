@@ -51,6 +51,7 @@ function assistantPage() {
           <label class="assistant-toggle"><input type="checkbox" id="ai-mode-toggle" ${aiSettings().enabled ? "checked" : ""}> Use AI (LLM) for answers</label>
           <div class="assistant-settings-row">
             <select id="ai-provider">
+              <option value="pollinations" ${aiSettings().provider === "pollinations" ? "selected" : ""}>Pollinations (free, no key)</option>
               <option value="ollama" ${aiSettings().provider === "ollama" ? "selected" : ""}>Ollama (local, qwen2.5:0.5b)</option>
               <option value="groq" ${aiSettings().provider === "groq" ? "selected" : ""}>Groq (Llama 3.1 8B, free)</option>
               <option value="grok" ${aiSettings().provider === "grok" ? "selected" : ""}>Grok (xAI, grok-2)</option>
