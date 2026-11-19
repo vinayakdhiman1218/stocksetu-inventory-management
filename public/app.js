@@ -277,7 +277,7 @@ function bindDashboard() {
   root.querySelector('#customer-search')?.addEventListener('input',event=>{const q=event.target.value.toLowerCase();root.querySelector('#customer-rows').innerHTML=customerRows(state.customers.filter(c=>`${c.name} ${c.phone} ${c.email}`.toLowerCase().includes(q)));});
   root.querySelector('#supplier-search')?.addEventListener('input',event=>{const q=event.target.value.toLowerCase();root.querySelector('#supplier-rows').innerHTML=supplierRows(state.suppliers.filter(s=>`${s.name} ${s.phone} ${s.email}`.toLowerCase().includes(q)));});
   root.querySelector('#movement-search')?.addEventListener('input',event=>{const q=event.target.value.toLowerCase();root.querySelector('#movement-rows').innerHTML=movementRows(state.movements.filter(m=>`${m.product} ${m.sku} ${m.reference} ${m.type} ${m.note||''}`.toLowerCase().includes(q)));});
-  if (activePage === 'StockSathi') { root.querySelector('#assistant-product')?.addEventListener('change',()=>askStockSathi('')); askStockSathi(''); }
+  if (activePage === 'StockSathi') { /* chatbot: user types product name directly */ }
   root.querySelectorAll('form').forEach(form=>form.addEventListener('submit',handleForm));
   root.querySelector('[data-action="period"]')?.addEventListener('change',event=>{chartPeriod=Number(event.target.value);drawDashboardChart();toast(`Showing sales for ${event.target.selectedOptions[0].text.toLowerCase()}.`);});
 }

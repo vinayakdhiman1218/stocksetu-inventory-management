@@ -265,6 +265,36 @@ def _assistant_product(db, product_id, user):
     ).first()
 
 
+def _resolve_product(db, user, question, product_id=None):
+    """Find the product a chat message is about.
+
+    Returns (product, choices) where choices is a list of candidate products
+    when the message did not pin down a single one.
+    """
+    if product_id is not None:
+        product = _assistant_product(db, product_id, user)
+        if product is not None:
+            return product, []
+    products = db.query(models.Product).filter(models.Product.user_id == user.id).all()
+    if not products:
+        return None, []
+    q = (question or "").lower()
+    matches = [p for p in products if p.name and p.name.lower() in q]
+    if not matches:
+        # Fall back to token overlap for multi-word product names.
+        tokens = [t for t in q.split() if len(t) >= 3]
+        matches = [p for p in products if any(t in (p.name or "").lower() for t in tokens)]
+    # Prefer the longest name match to avoid "Shirt" stealing "Cotton Shirt".
+    matches = sorted(set(matches), key=lambda p: len(p.name or ""), reverse=True)
+    if len(matches) == 1:
+        return matches[0], []
+    if len(matches) > 1:
+        return None, matches
+    if len(products) == 1:
+        return products[0], []
+    return None, products
+
+
 @app.get("/assistant/analyze/{product_id}")
 def assistant_analyze(product_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     product = _assistant_product(db, product_id, current_user)
@@ -283,16 +313,22 @@ def assistant_analyze(product_id: int, db: Session = Depends(get_db), current_us
 
 @app.post("/assistant/ask")
 def assistant_question(payload: schemas.AssistantAsk, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    product = _assistant_product(db, payload.product_id, current_user)
+    product, choices = _resolve_product(db, current_user, payload.question or "", payload.product_id)
     if product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+        if not choices:
+            return {"answer": "Pehle koi product add karo, phir main uske records se jawab de sakta hoon.", "analysis": None}
+        names = ", ".join(p.name for p in choices[:8])
+        return {
+            "answer": f"Kaunsa product? Thoda specific bolo — main ye samajh paaya: {names}. Product ka naam likh kar poochho, jaise 'Cotton Shirt ke baare me btao'.",
+            "analysis": None,
+        }
     sales = db.query(models.Sale).filter(
         models.Sale.user_id == current_user.id,
-        models.Sale.product_id == payload.product_id,
+        models.Sale.product_id == product.id,
     ).all()
     purchases = db.query(models.Purchase).filter(
         models.Purchase.user_id == current_user.id,
-        models.Purchase.product_id == payload.product_id,
+        models.Purchase.product_id == product.id,
     ).all()
     analysis = analyze_product(product, sales, purchases)
     question = payload.question or ""

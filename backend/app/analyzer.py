@@ -39,8 +39,7 @@ def _rate_text(rate, unit):
     singular = unit[:-1] if unit.endswith("s") else unit
     if rate < 1:
         per_day = max(1, round(1 / rate))
-        word = unit if per_day > 1 else singular
-        return f"har ~{per_day} din me 1 {word}"
+        return f"har ~{per_day} din me 1 {singular}"
     return f"~{rate:.1f} {unit} roz"
 
 

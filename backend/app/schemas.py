@@ -34,7 +34,7 @@ class SaleCreate(BaseModel):
 
 class AssistantAsk(BaseModel):
     question: str = Field(default="", max_length=500)
-    product_id: int = Field(gt=0)
+    product_id: int | None = None
 
 
 class UserRegister(BaseModel):
