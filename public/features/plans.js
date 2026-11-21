@@ -188,11 +188,14 @@ function planPage() {
     <div class="plan-grid">${cards}</div>
     ${matrixHtml}
     <div class="plan-faq">
-      <h3>FAQ</h3>
-      <details><summary>Payment kaise hoga?</summary><p>PhonePe / Paytm UPI se. Zero commission — poora paisa tumhare bank me.</p></details>
-      <details><summary>Plan change kab effect hoga?</summary><p>Payment confirm hote hi turant upgrade. Downgrade next billing cycle se.</p></details>
-      <details><summary>Refund mil sakta hai?</summary><p>7 din ke andar full refund, bina sawaal.</p></details>
-      <details><summary>Free plan kab tak free hai?</summary><p>Hamesha free — koi hidden charge nahi.</p></details>
+      <h3>Frequently asked questions</h3>
+      <details><summary>Can I try StockSetu for free?</summary><p>Yes. The Free plan is free forever with 25 products and 30 invoices per month. No credit card needed.</p></details>
+      <details><summary>How does a plan upgrade work?</summary><p>Pay via UPI (PhonePe, GPay, Paytm). Your plan upgrades instantly once payment is confirmed. Downgrades take effect at the next billing cycle.</p></details>
+      <details><summary>Will my data be safe if I downgrade or cancel?</summary><p>Yes. Your products, sales and purchases stay intact. Only the premium features become locked.</p></details>
+      <details><summary>Can multiple staff members use one account?</summary><p>Yes. Silver supports 2 users, Gold 5 users and Diamond unlimited users, with role-based access.</p></details>
+      <details><summary>Is there a refund policy?</summary><p>Full refund within 7 days, no questions asked.</p></details>
+      <details><summary>Do you charge any commission on payments?</summary><p>No. UPI payments go directly to your bank account with zero commission.</p></details>
+      <details><summary>Can I switch between monthly and yearly billing?</summary><p>Yes, anytime. Yearly plans save you about 17% compared to monthly.</p></details>
     </div>`;
 }
 
