@@ -964,6 +964,13 @@ def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depe
         try:
             with _http_open(rz_req, timeout=25) as resp:
                 rz_parsed = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            if exc.code == 401:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Razorpay authentication failed. API keys are invalid or disabled. Open Razorpay Dashboard → Test Mode → Settings → API Keys → Regenerate Key, then update RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+                )
+            raise HTTPException(status_code=502, detail=f"Razorpay order create failed: HTTP {exc.code}")
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Razorpay order create failed: {str(exc)[:200]}")
         rz_order_id = rz_parsed.get("id")
