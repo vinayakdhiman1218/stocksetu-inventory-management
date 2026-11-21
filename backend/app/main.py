@@ -856,6 +856,21 @@ def apple_login(payload: schemas.AppleCredentialRequest, db: Session = Depends(g
 
 # ================= BILLING / PLANS =================
 
+def _http_open(req, timeout=25):
+    ctx = None
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        ctx = ssl.create_default_context()
+    try:
+        return urllib.request.urlopen(req, timeout=timeout, context=ctx)
+    except urllib.error.URLError as exc:
+        if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+            return urllib.request.urlopen(req, timeout=timeout, context=ssl._create_unverified_context())
+        raise
+
+
 PLAN_PRICES_PAISE = {
     "silver":  {"monthly": 19900,  "yearly": 199900},
     "gold":    {"monthly": 49900,  "yearly": 499900},
@@ -937,7 +952,7 @@ def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depe
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=25) as resp:
+            with _http_open(req, timeout=25) as resp:
                 parsed = json.loads(resp.read().decode("utf-8"))
             url = (parsed.get("data") or {}).get("instrumentResponse", {}).get("redirectInfo", {}).get("url")
             if not url:
@@ -946,14 +961,56 @@ def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depe
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"PhonePe create failed: {str(exc)[:200]}")
 
+    paytm_mid = os.getenv("PAYTM_MERCHANT_ID")
+    paytm_key = os.getenv("PAYTM_MERCHANT_KEY")
+    paytm_env = os.getenv("PAYTM_ENV", "staging").lower()
+    if paytm_mid and paytm_key:
+        order.provider = "paytm"
+        base = "https://securegw.paytm.in" if paytm_env != "staging" else "https://securegw-stage.paytm.in"
+        callback = os.getenv("BILLING_WEBHOOK_URL", "http://localhost:8000/billing/webhook/paytm")
+        redirect = os.getenv("BILLING_REDIRECT_URL", "http://localhost:5500/#/dashboard") + f"?payment=success&order={order_ref}"
+        body = {
+            "requestType": "Payment",
+            "mid": paytm_mid,
+            "websiteName": os.getenv("PAYTM_WEBSITE", "DEFAULT"),
+            "orderId": order_ref,
+            "txnAmount": {"value": f"{amount/100:.2f}", "currency": "INR"},
+            "userInfo": {"custId": str(current_user.id)},
+            "callbackUrl": callback,
+        }
+        try:
+            import paytmchecksum
+            checksum = paytmchecksum.generateSignature(json.dumps(body), paytm_key)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Paytm checksum failed: {str(exc)[:120]}")
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+        req_body = {"body": body, "head": {"signature": checksum}}
+        req = urllib.request.Request(
+            f"{base}/theia/api/v1/initiateTransaction?mid={paytm_mid}&orderId={order_ref}",
+            data=json.dumps(req_body).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with _http_open(req, timeout=25) as resp:
+                parsed = json.loads(resp.read().decode("utf-8"))
+            result = (parsed.get("body") or {}).get("resultInfo") or {}
+            if result.get("resultStatus") not in ("S", "TXN_SUCCESS"):
+                raise HTTPException(status_code=502, detail=result.get("resultMsg", "Paytm initiate failed"))
+            txn_token = (parsed.get("body") or {}).get("txnToken")
+            if not txn_token:
+                raise HTTPException(status_code=502, detail="Paytm did not return txnToken")
+            return {"provider": "paytm", "order_ref": order_ref, "amount": amount, "mid": paytm_mid, "order_id": order_ref, "txn_token": txn_token, "base_url": base}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Paytm create failed: {str(exc)[:200]}")
+
     # Manual UPI fallback (no merchant creds)
-    vpa = os.getenv("STOCKSETU_UPI_VPA", "").strip()
+    vpa = os.getenv("STOCKSETU_UPI_VPA", "").strip() or "9467092793@ptyes"
     payee = os.getenv("STOCKSETU_UPI_NAME", "StockSetu")
-    if not vpa:
-        # try business settings
-        bs = db.query(models.BusinessSettings).filter(models.BusinessSettings.user_id == current_user.id).first()
-        # no VPA stored; use a sensible default placeholder
-        vpa = "stocksetu@upi"
     db.add(order)
     db.commit()
     db.refresh(order)
@@ -981,11 +1038,37 @@ def billing_status(order_ref: str, db: Session = Depends(get_db), current_user: 
             x_verify = hashlib.sha256((path + phonepe_salt).encode("utf-8")).hexdigest() + "###" + phonepe_index
             req = urllib.request.Request(base + path, headers={"Content-Type": "application/json", "X-VERIFY": x_verify, "X-MERCHANT-ID": phonepe_mid}, method="GET")
             try:
-                with urllib.request.urlopen(req, timeout=20) as resp:
+                with _http_open(req, timeout=20) as resp:
                     parsed = json.loads(resp.read().decode("utf-8"))
                 state = ((parsed.get("data") or {}).get("state") or "").upper()
                 if state == "COMPLETED":
                     _mark_order_paid(db, order, ((parsed.get("data") or {}).get("transactionId")))
+            except Exception:
+                pass
+    if order.provider == "paytm" and order.status not in ("paid",):
+        paytm_mid = os.getenv("PAYTM_MERCHANT_ID")
+        paytm_key = os.getenv("PAYTM_MERCHANT_KEY")
+        paytm_env = os.getenv("PAYTM_ENV", "staging").lower()
+        if paytm_mid and paytm_key:
+            base = "https://securegw.paytm.in" if paytm_env != "staging" else "https://securegw-stage.paytm.in"
+            body = {"mid": paytm_mid, "orderId": order_ref}
+            try:
+                import paytmchecksum
+                checksum = paytmchecksum.generateSignature(json.dumps(body), paytm_key)
+                req_body = {"body": body, "head": {"signature": checksum}}
+                req = urllib.request.Request(
+                    f"{base}/v3/order/status",
+                    data=json.dumps(req_body).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with _http_open(req, timeout=20) as resp:
+                    parsed = json.loads(resp.read().decode("utf-8"))
+                result = (parsed.get("body") or {}).get("resultInfo") or {}
+                txn_status = ((parsed.get("body") or {}).get("txnStatus") or "").upper()
+                if txn_status in ("TXN_SUCCESS", "SUCCESS"):
+                    txn_id = (parsed.get("body") or {}).get("txnId")
+                    _mark_order_paid(db, order, txn_id)
             except Exception:
                 pass
     sub = _get_or_create_subscription(db, current_user.id)
@@ -1054,3 +1137,47 @@ def billing_confirm_manual(payload: schemas.BillingConfirmManual, db: Session = 
     db.commit()
     db.refresh(order)
     return {"status": "paid", "tier": order.tier}
+
+
+@app.post("/billing/webhook/paytm")
+async def billing_webhook_paytm(request: Request, db: Session = Depends(get_db)):
+    paytm_key = os.getenv("PAYTM_MERCHANT_KEY")
+    if not paytm_key:
+        raise HTTPException(status_code=400, detail="Paytm not configured")
+    # Paytm posts form-encoded params
+    form = await request.form()
+    params = {k: str(v) for k, v in form.items()}
+    checksum = params.get("CHECKSUMHASH")
+    if not checksum:
+        # maybe JSON
+        try:
+            body = await request.json()
+            params = {k: str(v) for k, v in body.items()}
+            checksum = params.get("CHECKSUMHASH")
+        except Exception:
+            pass
+    if not checksum:
+        raise HTTPException(status_code=400, detail="Missing checksum")
+    try:
+        import paytmchecksum
+        ok = paytmchecksum.verifySignature(params, paytm_key, checksum)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Paytm verify error: {str(exc)[:120]}")
+    if not ok:
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    order_ref = params.get("ORDERID") or params.get("orderId")
+    status = (params.get("STATUS") or params.get("status") or "").upper()
+    txn_id = params.get("TXNID") or params.get("txnId")
+    amount = params.get("TXNAMOUNT") or params.get("txnAmount")
+    order = db.query(models.PaymentOrder).filter(models.PaymentOrder.order_ref == order_ref).first()
+    if order is None:
+        return {"status": "ignored"}
+    if amount is not None:
+        try:
+            if int(round(float(amount) * 100)) != int(order.amount):
+                raise HTTPException(status_code=400, detail="Amount mismatch")
+        except ValueError:
+            pass
+    if status in ("TXN_SUCCESS", "SUCCESS", "S"):
+        _mark_order_paid(db, order, txn_id)
+    return {"status": "ok"}

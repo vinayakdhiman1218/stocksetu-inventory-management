@@ -306,6 +306,19 @@ async function handlePlanAction(action, button) {
           window.location.href = data.payment_url;
           return true;
         }
+        if (data.provider === 'paytm' && data.txn_token) {
+          writePlan({ tier, billing: planBilling, status: 'pending' });
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = `${data.base_url}/theia/paytmCallback?mid=${encodeURIComponent(data.mid)}&orderId=${encodeURIComponent(data.order_id)}`;
+          const add = (name, value) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = name; i.value = value; form.appendChild(i); };
+          add('mid', data.mid);
+          add('orderId', data.order_id);
+          add('txnToken', data.txn_token);
+          document.body.appendChild(form);
+          form.submit();
+          return true;
+        }
         // manual UPI flow
         writePlan({ tier, billing: planBilling, status: 'pending' });
         const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.upi_uri)}`;
