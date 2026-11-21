@@ -298,7 +298,11 @@ async function handlePlanAction(action, button) {
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ tier, billing: planBilling }),
         });
-        if (!res.ok) { const e = await res.json().catch(()=>({})); toast(e.detail || 'Order failed'); return true; }
+        let errMsg = 'Order failed';
+        try { const e = await res.json(); errMsg = e.detail || e.message || errMsg; } catch (_) {}
+        console.error('create-order failed', res.status, errMsg);
+        toast(`${errMsg} (${res.status})`);
+        return true;
         const data = await res.json();
         if (data.provider === 'razorpay' && data.razorpay_order_id) {
           writePlan({ tier, billing: planBilling, status: 'pending' });
@@ -346,7 +350,8 @@ async function handlePlanAction(action, button) {
               rzp.open();
             });
           } catch (e) {
-            if (e && e.message !== 'dismissed') toast('Razorpay error: ' + (e.message || e));
+            console.error('Razorpay flow error:', e);
+            if (e && e.message !== 'dismissed') toast('Razorpay error: ' + (e && e.message ? e.message : e));
           }
           return true;
         }
