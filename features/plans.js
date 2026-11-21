@@ -307,6 +307,10 @@ async function handlePlanAction(action, button) {
           return true;
         }
         const data = await res.json();
+        console.log('create-order provider:', data.provider);
+        if (data.provider === 'manual') {
+          toast('Razorpay not configured — using manual UPI. Set RAZORPAY_KEY_ID/SECRET in backend .env');
+        }
         if (data.provider === 'razorpay' && data.razorpay_order_id) {
           writePlan({ tier, billing: planBilling, status: 'pending' });
           const loadScript = () => new Promise((resolve, reject) => {
