@@ -258,7 +258,7 @@ function renderRegister() {
 const navGroups = [
   { label: 'Workspace', items: [ ['Overview','grid'], ['StockSathi','spark'], ['Inventory','box'], ['Stock history','clock'], ['Sales & invoices','receipt'], ['Purchases','cart'] ] },
   { label: 'Relationships', items: [ ['Customers','users'], ['Suppliers','truck'] ] },
-  { label: 'Insights', items: [ ['Reports','chart'] ] },
+  { label: 'Insights', items: [ ['Reports','chart'], ['Plans','tag'] ] },
 ];
 
 

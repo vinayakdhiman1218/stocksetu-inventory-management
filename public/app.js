@@ -206,7 +206,7 @@ function renderDashboard() {
   window.removeEventListener('scroll', updateScrollProgress);
   const title = activePage;
   const nav = navGroups.map(group => `<div class="workspace-label">${group.label}</div><div class="side-links">${group.items.map(([name, glyph]) => `<button class="side-link ${name === activePage ? 'active' : ''}" data-page="${escapeHTML(name)}">${icon(glyph)}<span>${escapeHTML(name)}</span>${name === 'Inventory' && lowProducts().length ? `<i class="nav-count">${lowProducts().length}</i>` : ''}</button>`).join('')}</div>`).join('');
-  root.innerHTML = `<div class="dashboard"><aside class="sidebar" id="sidebar">${brand()}<button type="button" class="workspace-select" data-page="Overview" aria-label="Go to Overview"><i>${icon('grid')}</i><span><small>YOUR WORKSPACE</small><b>${escapeHTML(state.settings.businessName)}</b></span>${icon('chevron')}</button>${nav}<div class="workspace-label">Preferences</div><div class="side-links"><button class="side-link ${activePage === 'Settings' ? 'active' : ''}" data-page="Settings">${icon('settings')}<span>Settings</span></button></div><div class="side-bottom"><div class="plan-card"><i>${icon('spark')}</i><b>Everything in one place.</b><p>Your workspace is ready. Add items or record today’s first sale.</p><button data-action="add-product">+ Add a product</button></div><div class="profile"><i class="profile-avatar">${initials(getUser())}</i><span class="profile-info"><b>${escapeHTML(getUser())}</b><small>Workspace owner</small></span><button class="logout-btn" data-action="logout" aria-label="Log out">${icon('logout')}</button></div></div></aside><section class="dash-main">${topbar(title)}<main class="main-content" id="main-content">${renderPage(activePage)}</main></section><div class="mobile-backdrop" data-action="close-menu"></div></div>`;
+  root.innerHTML = `<div class="dashboard"><aside class="sidebar" id="sidebar">${brand()}<button type="button" class="workspace-select" data-page="Overview" aria-label="Go to Overview"><i>${icon('grid')}</i><span><small>YOUR WORKSPACE</small><b>${escapeHTML(state.settings.businessName)}</b></span>${icon('chevron')}</button>${nav}<div class="workspace-label">Preferences</div><div class="side-links"><button class="side-link ${activePage === 'Settings' ? 'active' : ''}" data-page="Settings">${icon('settings')}<span>Settings</span></button></div><div class="side-bottom"><div class="plan-card">${planCardSidebar()}</div><div class="profile"><i class="profile-avatar">${initials(getUser())}</i><span class="profile-info"><b>${escapeHTML(getUser())}</b><small>Workspace owner</small></span><button class="logout-btn" data-action="logout" aria-label="Log out">${icon('logout')}</button></div></div></aside><section class="dash-main">${topbar(title)}<main class="main-content" id="main-content">${renderPage(activePage)}</main></section><div class="mobile-backdrop" data-action="close-menu"></div></div>`;
   bindDashboard();
   document.querySelector('#settings-form')?.addEventListener('submit', saveBusinessSettings);
   document.querySelector('#invoice-settings-form')?.addEventListener('submit', saveInvoicePreferences);
@@ -246,6 +246,7 @@ function renderPage(page) {
   if (page === 'Reports') return reportsPage();
   if (page === 'StockSathi') return assistantPage();
   if (page === 'Settings') return settingsPage();
+  if (page === 'Plans') return planPage();
   return overviewPage();
 }
 function drawDashboardChart() {
@@ -284,6 +285,7 @@ function bindDashboard() {
 function updateProductRows(){const body=root.querySelector('#product-rows');if(body)body.innerHTML=filteredProducts().map(productRow).join('')||'<tr><td class="table-empty" colspan="7">No products match this filter.</td></tr>';const count=root.querySelector('.table-bottom span');if(count)count.textContent=`Showing ${filteredProducts().length} of ${state.products.length} products`;}
 function handleAction(button) {
   const action=button.dataset.action; const id=button.dataset.id;
+  if (typeof handlePlanAction === 'function' && handlePlanAction(action, button)) return;
   if (action === 'toggle-row-menu') {
     const menu = button.parentElement?.querySelector('.row-menu-popover');
     const shouldOpen = Boolean(menu?.hidden); closeRowMenus();

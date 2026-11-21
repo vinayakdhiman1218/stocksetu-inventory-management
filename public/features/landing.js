@@ -3,7 +3,7 @@ function brandPageHome() {
   root.innerHTML = `
     <div class="scroll-progress" aria-hidden="true"></div>
     <header class="launch-nav"><div class="launch-nav-inner">${brand()}
-      <nav class="nav-links" id="site-nav" aria-label="Main navigation"><a href="#capabilities">What you can do</a><a href="#workflow">How it works</a><a href="#why-stocksetu">Why StockSetu</a></nav>
+      <nav class="nav-links" id="site-nav" aria-label="Main navigation"><a href="#capabilities">What you can do</a><a href="#workflow">How it works</a><a href="#plans">Plans</a><a href="#why-stocksetu">Why StockSetu</a></nav>
       <div class="launch-actions"><button class="launch-theme" id="home-theme-toggle" type="button" aria-label="Switch to ${document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'} mode" aria-pressed="${document.documentElement.dataset.theme === 'dark'}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}</button><a class="launch-login" href="#/login">Log in</a><a class="launch-cta" href="#/register">Get started ${icon('arrow')}</a><button class="menu-toggle" id="menu-toggle" aria-label="Open navigation">${icon('menu')}</button></div>
     </div></header>
     <main class="launch-page">
@@ -36,6 +36,7 @@ function brandPageHome() {
       <section class="launch-why" id="why-stocksetu"><div class="container launch-why-card reveal"><div class="launch-why-orb" aria-hidden="true"><span>${icon('mark')}</span><i class="why-ring ring-a"></i><i class="why-ring ring-b"></i><i class="why-ring ring-c"></i></div><div class="launch-why-copy"><span class="launch-overline">Made for everyday business</span><h2>Less searching.<br><em>More certainty.</em></h2><p>StockSetu brings the important details closer, so your records are easier to keep up with and easier to trust.</p><div class="launch-why-points"><span>${icon('check')} A clear home for daily records</span><span>${icon('check')} Helpful stock reminders</span><span>${icon('check')} Your business, at a glance</span></div></div><div class="launch-why-glass">${icon('check')}<span><b>Everything accounted for</b><small>Products · Purchases · Sales</small></span></div></div></section>
       <section class="launch-final"><div class="container"><div class="launch-final-card reveal"><div><span class="launch-overline">Your business, a little clearer</span><h2>Make space for the work<br>that moves you forward.</h2><p>Bring your products, purchases and sales into one workspace.</p></div><a class="launch-primary" href="#/register">Create your workspace ${icon('arrow')}</a><div class="launch-final-glow" aria-hidden="true"></div></div></div></section>
     </main>
+    ${landingPlansSection()}
     <footer class="launch-footer"><div class="container launch-footer-inner"><div>${brand()}<span>Stock sambhalo. Hisaab saaf rakho.</span></div><nav><a href="#capabilities">Features</a><a href="#workflow">How it works</a></nav><small>© 2026 StockSetu · Inventory and billing for everyday business</small></div></footer>`;
   const nav = document.querySelector('#site-nav');
   document.querySelector('#menu-toggle')?.addEventListener('click', () => nav.classList.toggle('open'));

@@ -54,6 +54,9 @@ function teamInitials(value) {
   return String(value || '?').split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 }
 function teamAccessPage() {
+  if (typeof planFeatureAllowed === 'function' && !planFeatureAllowed('teamRoles')) {
+    return `<div class="page-heading"><div><div class="eyebrow">GOLD PLAN</div><h1>Team & access</h1><p>Team roles Gold plan ke saath aate hain.</p></div></div><div class="panel"><div class="plan-locked-box"><i>${icon('shield')}</i><h3>Upgrade to Gold</h3><p>Biller, Accountant, Stock Keeper, Viewer roles unlock honge.</p><button class="btn btn-sm" data-action="select-plan" data-plan="gold">Upgrade to Gold ${icon('arrow')}</button></div></div>`;
+  }
   const data = readTeamAccess();
   const ownerName = getUser();
   const ownerEmail = (localStorage.getItem('stocksetu-user') || '').includes('@') ? localStorage.getItem('stocksetu-user') : '';
