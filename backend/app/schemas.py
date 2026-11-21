@@ -54,6 +54,13 @@ class BillingConfirmManual(BaseModel):
     utr: str = Field(min_length=6, max_length=40)
 
 
+class BillingVerifyRazorpay(BaseModel):
+    order_ref: str = Field(min_length=6, max_length=64)
+    razorpay_payment_id: str = Field(min_length=6, max_length=64)
+    razorpay_order_id: str = Field(min_length=6, max_length=64)
+    razorpay_signature: str = Field(min_length=16, max_length=256)
+
+
 class UserRegister(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=128)

@@ -89,6 +89,7 @@ class PaymentOrder(Base):
     provider = Column(String(20), nullable=False, default="manual")
     status = Column(String(20), nullable=False, default="created")
     transaction_id = Column(String(120), unique=True, nullable=True)
+    provider_order_id = Column(String(120), nullable=True, index=True)
     utr = Column(String(60), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True)

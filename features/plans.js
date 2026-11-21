@@ -301,6 +301,56 @@ async function handlePlanAction(action, button) {
         });
         if (!res.ok) { const e = await res.json().catch(()=>({})); toast(e.detail || 'Order failed'); return true; }
         const data = await res.json();
+        if (data.provider === 'razorpay' && data.razorpay_order_id) {
+          writePlan({ tier, billing: planBilling, status: 'pending' });
+          const loadScript = () => new Promise((resolve, reject) => {
+            if (window.Razorpay) { resolve(); return; }
+            const s = document.createElement('script');
+            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            s.onload = resolve; s.onerror = reject;
+            document.head.appendChild(s);
+          });
+          try {
+            await loadScript();
+            await new Promise((resolve, reject) => {
+              const rzp = new window.Razorpay({
+                key: data.key_id,
+                amount: data.amount,
+                currency: 'INR',
+                name: 'StockSetu',
+                description: `${plan.name} plan (${billing === 'yearly' ? 'yearly' : 'monthly'})`,
+                order_id: data.razorpay_order_id,
+                prefill: { email: (typeof getUser === 'function' ? getUser() : '') },
+                theme: { color: '#2f6042' },
+                handler: async (response) => {
+                  try {
+                    const t = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+                    const r = await fetch(`${API_BASE_URL}/billing/verify-razorpay`, {
+                      method: 'POST',
+                      headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        order_ref: data.order_ref,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature,
+                      }),
+                    });
+                    if (!r.ok) { const e = await r.json().catch(()=>({})); toast(e.detail || 'Verification failed'); reject(new Error('verify failed')); return; }
+                    await syncPlanFromBackend();
+                    toast('Payment successful! Plan upgraded.');
+                    renderDashboard();
+                    resolve();
+                  } catch (e) { toast('Verification error: ' + e.message); reject(e); }
+                },
+                modal: { ondismiss: () => { toast('Payment cancelled'); reject(new Error('dismissed')); } },
+              });
+              rzp.open();
+            });
+          } catch (e) {
+            if (e && e.message !== 'dismissed') toast('Razorpay error: ' + (e.message || e));
+          }
+          return true;
+        }
         if (data.provider === 'phonepe' && data.payment_url) {
           writePlan({ tier, billing: planBilling, status: 'pending' });
           window.location.href = data.payment_url;

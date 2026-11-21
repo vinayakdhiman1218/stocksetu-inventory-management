@@ -921,6 +921,44 @@ def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depe
         created_at=datetime.now(timezone.utc),
     )
 
+    razorpay_key_id = os.getenv("RAZORPAY_KEY_ID", "").strip()
+    razorpay_key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+    if razorpay_key_id and razorpay_key_secret:
+        order.provider = "razorpay"
+        # Create Razorpay order
+        rz_payload = {
+            "amount": amount,
+            "currency": "INR",
+            "receipt": order_ref,
+            "notes": {"order_ref": order_ref, "tier": tier, "billing": billing, "user_id": str(current_user.id)},
+        }
+        rz_auth = base64.b64encode(f"{razorpay_key_id}:{razorpay_key_secret}".encode("utf-8")).decode("ascii")
+        rz_req = urllib.request.Request(
+            "https://api.razorpay.com/v1/orders",
+            data=json.dumps(rz_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": "Basic " + rz_auth},
+            method="POST",
+        )
+        try:
+            with _http_open(rz_req, timeout=25) as resp:
+                rz_parsed = json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Razorpay order create failed: {str(exc)[:200]}")
+        rz_order_id = rz_parsed.get("id")
+        if not rz_order_id:
+            raise HTTPException(status_code=502, detail="Razorpay did not return an order id")
+        order.provider_order_id = rz_order_id
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+        return {
+            "provider": "razorpay",
+            "order_ref": order_ref,
+            "amount": amount,
+            "key_id": razorpay_key_id,
+            "razorpay_order_id": rz_order_id,
+        }
+
     phonepe_mid = os.getenv("PHONEPE_MERCHANT_ID")
     phonepe_salt = os.getenv("PHONEPE_SALT_KEY")
     phonepe_index = os.getenv("PHONEPE_SALT_INDEX", "1")
@@ -1045,6 +1083,34 @@ def billing_status(order_ref: str, db: Session = Depends(get_db), current_user: 
                     _mark_order_paid(db, order, ((parsed.get("data") or {}).get("transactionId")))
             except Exception:
                 pass
+    if order.provider == "razorpay" and order.status not in ("paid",) and order.provider_order_id:
+        razorpay_key_id = os.getenv("RAZORPAY_KEY_ID", "").strip()
+        razorpay_key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+        if razorpay_key_id and razorpay_key_secret:
+            rz_auth = base64.b64encode(f"{razorpay_key_id}:{razorpay_key_secret}".encode("utf-8")).decode("ascii")
+            req = urllib.request.Request(
+                f"https://api.razorpay.com/v1/orders/{order.provider_order_id}",
+                headers={"Authorization": "Basic " + rz_auth},
+                method="GET",
+            )
+            try:
+                with _http_open(req, timeout=20) as resp:
+                    parsed = json.loads(resp.read().decode("utf-8"))
+                status = (parsed.get("status") or "").lower()
+                if status == "paid":
+                    # fetch payments
+                    req2 = urllib.request.Request(
+                        f"https://api.razorpay.com/v1/orders/{order.provider_order_id}/payments",
+                        headers={"Authorization": "Basic " + rz_auth},
+                        method="GET",
+                    )
+                    with _http_open(req2, timeout=20) as resp2:
+                        pdata = json.loads(resp2.read().decode("utf-8"))
+                    items = (pdata.get("items") or [])
+                    pid = items[0].get("id") if items else None
+                    _mark_order_paid(db, order, pid)
+            except Exception:
+                pass
     if order.provider == "paytm" and order.status not in ("paid",):
         paytm_mid = os.getenv("PAYTM_MERCHANT_ID")
         paytm_key = os.getenv("PAYTM_MERCHANT_KEY")
@@ -1137,6 +1203,70 @@ def billing_confirm_manual(payload: schemas.BillingConfirmManual, db: Session = 
     db.commit()
     db.refresh(order)
     return {"status": "paid", "tier": order.tier}
+
+
+@app.post("/billing/verify-razorpay")
+def billing_verify_razorpay(payload: schemas.BillingVerifyRazorpay, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    razorpay_key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+    if not razorpay_key_secret:
+        raise HTTPException(status_code=400, detail="Razorpay not configured")
+    # Verify signature
+    msg = (payload.razorpay_order_id + "|" + payload.razorpay_payment_id).encode("utf-8")
+    expected = hmac.new(razorpay_key_secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, payload.razorpay_signature):
+        raise HTTPException(status_code=400, detail="Invalid Razorpay signature")
+    order = db.query(models.PaymentOrder).filter(models.PaymentOrder.order_ref == payload.order_ref, models.PaymentOrder.user_id == current_user.id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.provider != "razorpay":
+        raise HTTPException(status_code=400, detail="Order is not a Razorpay order")
+    if order.provider_order_id and order.provider_order_id != payload.razorpay_order_id:
+        raise HTTPException(status_code=400, detail="Razorpay order mismatch")
+    if order.status == "paid":
+        sub = _get_or_create_subscription(db, current_user.id)
+        return {"status": "already_paid", "tier": order.tier, "subscription_tier": sub.tier}
+    # Optional: verify amount via Razorpay API
+    _mark_order_paid(db, order, payload.razorpay_payment_id)
+    order.utr = payload.razorpay_payment_id
+    db.commit()
+    db.refresh(order)
+    sub = _get_or_create_subscription(db, current_user.id)
+    return {"status": "paid", "tier": order.tier, "subscription_tier": sub.tier}
+
+
+@app.post("/billing/webhook/razorpay")
+async def billing_webhook_razorpay(request: Request, db: Session = Depends(get_db)):
+    webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET", "").strip()
+    if not webhook_secret:
+        raise HTTPException(status_code=400, detail="Razorpay webhook not configured")
+    body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature", "")
+    expected = hmac.new(webhook_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Bad payload")
+    event = data.get("event", "")
+    if event not in ("payment.captured", "order.paid"):
+        return {"status": "ignored", "event": event}
+    payload = data.get("payload", {}) or {}
+    payment = (payload.get("payment") or {}).get("entity") or {}
+    order_entity = (payload.get("order") or {}).get("entity") or {}
+    rz_order_id = payment.get("order_id") or order_entity.get("id")
+    rz_payment_id = payment.get("id")
+    amount = payment.get("amount")
+    if not rz_order_id:
+        return {"status": "ignored"}
+    order = db.query(models.PaymentOrder).filter(models.PaymentOrder.provider_order_id == rz_order_id).first()
+    if order is None:
+        return {"status": "ignored"}
+    if amount is not None and int(amount) != int(order.amount):
+        raise HTTPException(status_code=400, detail="Amount mismatch")
+    if order.status != "paid":
+        _mark_order_paid(db, order, rz_payment_id)
+    return {"status": "ok"}
 
 
 @app.post("/billing/webhook/paytm")
