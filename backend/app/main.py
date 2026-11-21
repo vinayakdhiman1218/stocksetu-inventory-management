@@ -72,6 +72,19 @@ with engine.begin() as connection:
     connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
     connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_apple_sub ON users (apple_sub)"))
     connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_verification_token_hash ON users (email_verification_token_hash)"))
+    # Billing tables migration for existing deployments.
+    try:
+        payment_order_columns = {column["name"] for column in inspect(engine).get_columns("payment_orders")}
+        if "provider_order_id" not in payment_order_columns:
+            connection.execute(text("ALTER TABLE payment_orders ADD COLUMN provider_order_id VARCHAR(120)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_payment_orders_provider_order_id ON payment_orders (provider_order_id)"))
+    except Exception:
+        pass
+    try:
+        subscription_columns = {column["name"] for column in inspect(engine).get_columns("subscriptions")}
+    except Exception:
+        subscription_columns = set()
+    # (no new subscription columns needed)
 
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
