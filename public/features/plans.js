@@ -330,7 +330,11 @@ async function handlePlanAction(action, button) {
                 name: 'StockSetu',
                 description: `${plan.name} plan (${planBilling === 'yearly' ? 'yearly' : 'monthly'})`,
                 order_id: data.razorpay_order_id,
-                prefill: { email: (typeof getUser === 'function' ? getUser() : '') },
+                prefill: {
+                  name: (typeof getUser === 'function' ? getUser() : ''),
+                  email: (state && state.settings && state.settings.email) || '',
+                  contact: (state && state.settings && state.settings.phone) || '',
+                },
                 theme: { color: '#2f6042' },
                 handler: async (response) => {
                   try {
