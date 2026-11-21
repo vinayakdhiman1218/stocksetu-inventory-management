@@ -65,6 +65,35 @@ class User(Base):
     email_verification_sent_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    tier = Column(String(20), nullable=False, default="free")
+    billing = Column(String(10), nullable=False, default="monthly")
+    status = Column(String(20), nullable=False, default="active")
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class PaymentOrder(Base):
+    __tablename__ = "payment_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    order_ref = Column(String(64), unique=True, nullable=False, index=True)
+    tier = Column(String(20), nullable=False)
+    billing = Column(String(10), nullable=False, default="monthly")
+    amount = Column(Integer, nullable=False)  # paise
+    provider = Column(String(20), nullable=False, default="manual")
+    status = Column(String(20), nullable=False, default="created")
+    transaction_id = Column(String(120), unique=True, nullable=True)
+    utr = Column(String(60), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class BusinessSettings(Base):
     __tablename__ = "business_settings"
 

@@ -283,9 +283,9 @@ function bindDashboard() {
   root.querySelector('[data-action="period"]')?.addEventListener('change',event=>{chartPeriod=Number(event.target.value);drawDashboardChart();toast(`Showing sales for ${event.target.selectedOptions[0].text.toLowerCase()}.`);});
 }
 function updateProductRows(){const body=root.querySelector('#product-rows');if(body)body.innerHTML=filteredProducts().map(productRow).join('')||'<tr><td class="table-empty" colspan="7">No products match this filter.</td></tr>';const count=root.querySelector('.table-bottom span');if(count)count.textContent=`Showing ${filteredProducts().length} of ${state.products.length} products`;}
-function handleAction(button) {
+async function handleAction(button) {
   const action=button.dataset.action; const id=button.dataset.id;
-  if (typeof handlePlanAction === 'function' && handlePlanAction(action, button)) return;
+  if (typeof handlePlanAction === 'function') { const r = await handlePlanAction(action, button); if (r) return; }
   if (action === 'toggle-row-menu') {
     const menu = button.parentElement?.querySelector('.row-menu-popover');
     const shouldOpen = Boolean(menu?.hidden); closeRowMenus();
@@ -420,6 +420,8 @@ function route(){
     activePage='Overview';renderDashboard();
     loadSettingsFromBackend();
     loadProductsFromBackend();
+    if (typeof syncPlanFromBackend === 'function') syncPlanFromBackend();
+    if (typeof handlePaymentReturn === 'function') handlePaymentReturn();
   }else if(path==='/login')renderLogin();else if(path==='/register')renderRegister();else brandPageHome();
   window.scrollTo({top:0,behavior:'smooth'});
 }

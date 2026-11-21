@@ -2,13 +2,17 @@
 import os
 import secrets
 import json
+import uuid
+import base64
+import hashlib
+import hmac
 import jwt
 import ssl
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import IntegrityError
@@ -849,3 +853,204 @@ def apple_login(payload: schemas.AppleCredentialRequest, db: Session = Depends(g
 # Vercel serves the committed public/ assets from its CDN. Keep this FastAPI
 # function focused on API routes so it does not depend on a static directory
 # that Vercel excludes from its runtime bundle.
+
+# ================= BILLING / PLANS =================
+
+PLAN_PRICES_PAISE = {
+    "silver":  {"monthly": 19900,  "yearly": 199900},
+    "gold":    {"monthly": 49900,  "yearly": 499900},
+    "diamond": {"monthly": 99900,  "yearly": 999900},
+}
+
+PLAN_DURATION_DAYS = {"monthly": 30, "yearly": 365}
+
+
+def _get_or_create_subscription(db, user_id):
+    sub = db.query(models.Subscription).filter(models.Subscription.user_id == user_id).first()
+    if sub is None:
+        sub = models.Subscription(user_id=user_id, tier="free", billing="monthly", status="active")
+        db.add(sub)
+        db.commit()
+        db.refresh(sub)
+    return sub
+
+
+@app.get("/billing/subscription")
+def billing_subscription(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    sub = _get_or_create_subscription(db, current_user.id)
+    return {
+        "tier": sub.tier,
+        "billing": sub.billing,
+        "status": sub.status,
+        "expires_at": sub.expires_at.isoformat() if sub.expires_at else None,
+    }
+
+
+@app.post("/billing/create-order")
+def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    tier = payload.tier
+    billing = payload.billing
+    if tier not in PLAN_PRICES_PAISE:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    amount = PLAN_PRICES_PAISE[tier][billing]
+
+    order_ref = "ORD-" + uuid.uuid4().hex[:12].upper()
+    order = models.PaymentOrder(
+        user_id=current_user.id,
+        order_ref=order_ref,
+        tier=tier,
+        billing=billing,
+        amount=amount,
+        provider="manual",
+        status="created",
+        created_at=datetime.now(timezone.utc),
+    )
+
+    phonepe_mid = os.getenv("PHONEPE_MERCHANT_ID")
+    phonepe_salt = os.getenv("PHONEPE_SALT_KEY")
+    phonepe_index = os.getenv("PHONEPE_SALT_INDEX", "1")
+    phonepe_env = os.getenv("PHONEPE_ENV", "sandbox").lower()
+
+    if phonepe_mid and phonepe_salt:
+        order.provider = "phonepe"
+        base = "https://api-preprod.phonepe.com/apis/pg-sandbox" if phonepe_env != "production" else "https://api.phonepe.com/apis/hermes"
+        body = {
+            "merchantId": phonepe_mid,
+            "merchantTransactionId": order_ref,
+            "merchantUserId": f"U{current_user.id}",
+            "amount": amount,
+            "redirectUrl": os.getenv("BILLING_REDIRECT_URL", "http://localhost:5500/#/dashboard") + f"?payment=success&order={order_ref}",
+            "redirectMode": "REDIRECT",
+            "callbackUrl": os.getenv("BILLING_WEBHOOK_URL", "http://localhost:8000/billing/webhook/phonepe"),
+            "paymentInstrument": {"type": "PAY_PAGE"},
+        }
+        raw = json.dumps(body).encode("utf-8")
+        b64 = base64.b64encode(raw).decode("ascii")
+        x_verify = hashlib.sha256((b64 + "/pg/v1/pay" + phonepe_salt).encode("utf-8")).hexdigest() + "###" + phonepe_index
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+        req = urllib.request.Request(
+            base + "/pg/v1/pay",
+            data=json.dumps({"request": b64}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-VERIFY": x_verify},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                parsed = json.loads(resp.read().decode("utf-8"))
+            url = (parsed.get("data") or {}).get("instrumentResponse", {}).get("redirectInfo", {}).get("url")
+            if not url:
+                raise HTTPException(status_code=502, detail="PhonePe did not return a payment URL")
+            return {"provider": "phonepe", "order_ref": order_ref, "amount": amount, "payment_url": url}
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"PhonePe create failed: {str(exc)[:200]}")
+
+    # Manual UPI fallback (no merchant creds)
+    vpa = os.getenv("STOCKSETU_UPI_VPA", "").strip()
+    payee = os.getenv("STOCKSETU_UPI_NAME", "StockSetu")
+    if not vpa:
+        # try business settings
+        bs = db.query(models.BusinessSettings).filter(models.BusinessSettings.user_id == current_user.id).first()
+        # no VPA stored; use a sensible default placeholder
+        vpa = "stocksetu@upi"
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    upi_uri = f"upi://pay?pa={vpa}&pn={urllib.parse.quote(payee)}&am={amount/100:.2f}&cu=INR&tn={urllib.parse.quote(tier + ' plan')}"
+    return {"provider": "manual", "order_ref": order_ref, "amount": amount, "upi_uri": upi_uri, "status": "created"}
+
+
+import urllib.parse
+
+
+@app.get("/billing/status/{order_ref}")
+def billing_status(order_ref: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    order = db.query(models.PaymentOrder).filter(models.PaymentOrder.order_ref == order_ref, models.PaymentOrder.user_id == current_user.id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    # If phonepe and still created/pending, try to confirm via status API
+    if order.provider == "phonepe" and order.status not in ("paid",):
+        phonepe_mid = os.getenv("PHONEPE_MERCHANT_ID")
+        phonepe_salt = os.getenv("PHONEPE_SALT_KEY")
+        phonepe_index = os.getenv("PHONEPE_SALT_INDEX", "1")
+        phonepe_env = os.getenv("PHONEPE_ENV", "sandbox").lower()
+        if phonepe_mid and phonepe_salt:
+            base = "https://api-preprod.phonepe.com/apis/pg-sandbox" if phonepe_env != "production" else "https://api.phonepe.com/apis/hermes"
+            path = f"/pg/v1/status/{phonepe_mid}/{order_ref}"
+            x_verify = hashlib.sha256((path + phonepe_salt).encode("utf-8")).hexdigest() + "###" + phonepe_index
+            req = urllib.request.Request(base + path, headers={"Content-Type": "application/json", "X-VERIFY": x_verify, "X-MERCHANT-ID": phonepe_mid}, method="GET")
+            try:
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    parsed = json.loads(resp.read().decode("utf-8"))
+                state = ((parsed.get("data") or {}).get("state") or "").upper()
+                if state == "COMPLETED":
+                    _mark_order_paid(db, order, ((parsed.get("data") or {}).get("transactionId")))
+            except Exception:
+                pass
+    sub = _get_or_create_subscription(db, current_user.id)
+    return {"order_ref": order.order_ref, "status": order.status, "tier": order.tier, "subscription_tier": sub.tier}
+
+
+def _mark_order_paid(db, order, transaction_id=None):
+    if order.status == "paid":
+        return
+    order.status = "paid"
+    order.transaction_id = transaction_id or order.transaction_id
+    order.paid_at = datetime.now(timezone.utc)
+    sub = _get_or_create_subscription(db, order.user_id)
+    sub.tier = order.tier
+    sub.billing = order.billing
+    sub.status = "active"
+    sub.expires_at = datetime.now(timezone.utc) + timedelta(days=PLAN_DURATION_DAYS.get(order.billing, 30))
+    sub.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+@app.post("/billing/webhook/phonepe")
+async def billing_webhook_phonepe(request: Request, db: Session = Depends(get_db)):
+    phonepe_salt = os.getenv("PHONEPE_SALT_KEY")
+    if not phonepe_salt:
+        raise HTTPException(status_code=400, detail="PhonePe not configured")
+    body = await request.body()
+    x_verify = request.headers.get("x-verify", "")
+    # body may be {"request": base64} or raw base64
+    try:
+        data = json.loads(body.decode("utf-8"))
+        b64 = data.get("request", "")
+    except Exception:
+        b64 = body.decode("utf-8").strip().strip('"')
+    calc = hashlib.sha256((b64 + phonepe_salt).encode("utf-8")).hexdigest()
+    if not x_verify.startswith(calc):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    try:
+        decoded = json.loads(base64.b64decode(b64).decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Bad payload")
+    order_ref = decoded.get("merchantTransactionId")
+    state = (decoded.get("state") or decoded.get("code") or "").upper()
+    txn_id = decoded.get("transactionId")
+    amount = decoded.get("amount")
+    order = db.query(models.PaymentOrder).filter(models.PaymentOrder.order_ref == order_ref).first()
+    if order is None:
+        return {"status": "ignored"}
+    if amount is not None and int(amount) != int(order.amount):
+        raise HTTPException(status_code=400, detail="Amount mismatch")
+    if state in ("COMPLETED", "PAYMENT_SUCCESS", "SUCCESS"):
+        _mark_order_paid(db, order, txn_id)
+    return {"status": "ok"}
+
+
+@app.post("/billing/confirm-manual")
+def billing_confirm_manual(payload: schemas.BillingConfirmManual, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    order = db.query(models.PaymentOrder).filter(models.PaymentOrder.order_ref == payload.order_ref, models.PaymentOrder.user_id == current_user.id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status == "paid":
+        return {"status": "already_paid", "tier": order.tier}
+    order.utr = payload.utr
+    _mark_order_paid(db, order, None)
+    order.utr = payload.utr
+    db.commit()
+    db.refresh(order)
+    return {"status": "paid", "tier": order.tier}

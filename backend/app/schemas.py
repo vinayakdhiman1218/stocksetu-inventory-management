@@ -44,6 +44,16 @@ class AssistantLLM(BaseModel):
     model: str | None = None
 
 
+class BillingCreateOrder(BaseModel):
+    tier: str = Field(pattern="^(silver|gold|diamond)$")
+    billing: str = Field(default="monthly", pattern="^(monthly|yearly)$")
+
+
+class BillingConfirmManual(BaseModel):
+    order_ref: str = Field(min_length=6, max_length=64)
+    utr: str = Field(min_length=6, max_length=40)
+
+
 class UserRegister(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=128)

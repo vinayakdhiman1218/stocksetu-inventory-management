@@ -226,7 +226,41 @@ function planCardSidebar() {
   const p = readPlan();
   return `<i>${icon('spark')}</i><b>${escapeHTML(plan.name)} plan.</b><p>${plan.priceMonthly === 0 ? 'Free forever.' : '₹' + planPrice(plan, p.billing || 'monthly').toLocaleString('en-IN') + '/' + ((p.billing || 'monthly') === 'yearly' ? 'yr' : 'mo')}. Upgrade for more.</p><button data-page="Plans">View plans ${icon('arrow')}</button>`;
 }
-function handlePlanAction(action, button) {
+async function syncPlanFromBackend() {
+  try {
+    const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+    if (!token) return;
+    const res = await fetch(`${API_BASE_URL}/billing/subscription`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.tier) {
+      const p = readPlan();
+      writePlan({ tier: data.tier, billing: data.billing || p.billing, status: data.status || 'active' });
+    }
+  } catch (e) { /* offline: keep local */ }
+}
+async function handlePaymentReturn() {
+  try {
+    const params = new URLSearchParams(location.hash.split('?')[1] || '');
+    const order = params.get('order');
+    if (!order) return;
+    const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+    if (!token) return;
+    const res = await fetch(`${API_BASE_URL}/billing/status/${encodeURIComponent(order)}`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.status === 'paid') {
+      await syncPlanFromBackend();
+      toast('Payment confirmed. Plan upgraded!');
+    }
+    // clean URL
+    location.hash = '#/dashboard';
+  } catch (e) {}
+}
+window.syncPlanFromBackend = syncPlanFromBackend;
+window.handlePaymentReturn = handlePaymentReturn;
+
+async function handlePlanAction(action, button) {
   if (action === 'toggle-billing') {
     const billing = button.dataset.billing;
     if (billing) {
@@ -253,9 +287,57 @@ function handlePlanAction(action, button) {
       toast(`${plan.name} plan activated.`);
       renderDashboard();
     } else {
-      // Phase 2: UPI payment. For now show pending + simulate.
-      writePlan({ tier, billing: planBilling, status: 'pending' });
-      showModal('Payment (sandbox)', `Upgrade to ${plan.name}`, `<div class="plan-pay-box"><p>UPI payment sandbox. Real PhonePe/Paytm merchant credentials add hone ke baad auto-activate hoga.</p><div class="plan-pay-qr"><code>upi://pay?pa=yourvpa@upi&am=${planPrice(plan, planBilling)}&tn=${encodeURIComponent(plan.name + ' plan')}</code></div><div class="modal-actions"><button class="btn btn-sm" data-action="confirm-payment" data-plan="${escapeHTML(tier)}">I have paid ${icon('check')}</button><button class="btn btn-light btn-sm" data-action="close-modal">Cancel</button></div></div>`);
+      // Phase 2: create billing order (PhonePe auto or manual UPI)
+      try {
+        const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+        if (!token) { toast('Please log in first.'); return true; }
+        const res = await fetch(`${API_BASE_URL}/billing/create-order`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tier, billing: planBilling }),
+        });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); toast(e.detail || 'Order failed'); return true; }
+        const data = await res.json();
+        if (data.provider === 'phonepe' && data.payment_url) {
+          writePlan({ tier, billing: planBilling, status: 'pending' });
+          window.location.href = data.payment_url;
+          return true;
+        }
+        // manual UPI flow
+        writePlan({ tier, billing: planBilling, status: 'pending' });
+        const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.upi_uri)}`;
+        showModal(`Pay ₹${(data.amount/100).toLocaleString('en-IN')}`, `Upgrade to ${plan.name}`, `<div class="plan-pay-box">
+          <p>Scan this QR with any UPI app (PhonePe, GPay, Paytm) and pay. Then enter the UTR number to auto-activate.</p>
+          <div class="plan-pay-qr"><img src="${qrImg}" alt="UPI QR" width="220" height="220"><br><code>${escapeHTML(data.upi_uri)}</code></div>
+          <div class="field"><label>UTR / Reference number</label><input id="utr-input" type="text" placeholder="12-digit UTR" maxlength="40"></div>
+          <div class="modal-actions">
+            <button class="btn btn-sm" data-action="confirm-manual-payment" data-order="${escapeHTML(data.order_ref)}">I have paid ${icon('check')}</button>
+            <button class="btn btn-light btn-sm" data-action="close-modal">Cancel</button>
+          </div>
+          <p class="plan-upgrade-note">Order: ${escapeHTML(data.order_ref)}</p>
+        </div>`);
+        // bind confirm button
+        setTimeout(() => {
+          const btn = document.querySelector('[data-action="confirm-manual-payment"]');
+          if (btn) btn.addEventListener('click', async () => {
+            const utr = (document.querySelector('#utr-input')?.value || '').trim();
+            if (utr.length < 6) { toast('Enter valid UTR'); return; }
+            const t = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+            const r = await fetch(`${API_BASE_URL}/billing/confirm-manual`, {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order_ref: btn.dataset.order, utr }),
+            });
+            if (!r.ok) { const e = await r.json().catch(()=>({})); toast(e.detail || 'Confirm failed'); return; }
+            await syncPlanFromBackend();
+            closeModal();
+            toast('Payment confirmed. Plan upgraded!');
+            renderDashboard();
+          });
+        }, 0);
+      } catch (e) {
+        toast('Network error: ' + e.message);
+      }
     }
     return true;
   }
