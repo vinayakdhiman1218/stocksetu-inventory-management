@@ -17,7 +17,8 @@ function purchaseLineMarkup(options){const first=state.products[0];return `<div 
 function updatePurchasePreview(form){if(!form)return;const rows=[...form.querySelectorAll('.purchase-line-row')];const amount=rows.reduce((sum,row)=>sum+(Math.max(0,Number(row.querySelector('.purchase-quantity').value)||0)*Math.max(0,Number(row.querySelector('.purchase-cost').value)||0)),0);const total=form.querySelector('.purchase-total');if(total)total.textContent=money(amount);form.querySelectorAll('.purchase-remove').forEach(button=>button.disabled=rows.length===1);}
 
 async function handlePurchaseForm(form,data,type) {
-
+ 
+    if (typeof planCanAddPurchase === 'function' && !planCanAddPurchase()) { upgradeModal('silver'); return; }
     const rows=[...form.querySelectorAll('.purchase-line-row')];const selected=rows.map(row=>({product:state.products.find(p=>p.id===row.querySelector('.purchase-product').value),quantity:Number(row.querySelector('.purchase-quantity').value),cost:Number(row.querySelector('.purchase-cost').value)}));
     if(selected.some(line=>!line.product||!Number.isInteger(line.quantity)||line.quantity<1||!Number.isFinite(line.cost)||line.cost<0)){form.querySelector('.form-error').hidden=false;return;}
     const grouped=new Map();selected.forEach(line=>{const current=grouped.get(line.product.id)||{product:line.product,quantity:0,amount:0};current.quantity+=line.quantity;current.amount+=line.quantity*line.cost;grouped.set(line.product.id,current);});const lineItems=[...grouped.values()];const totalQuantity=lineItems.reduce((sum,line)=>sum+line.quantity,0),amount=lineItems.reduce((sum,line)=>sum+line.amount,0);const enteredSupplier=String(data.supplier).trim();const supplier=enteredSupplier||lineItems[0]?.product.supplier||'Direct purchase';
