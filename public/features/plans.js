@@ -298,11 +298,14 @@ async function handlePlanAction(action, button) {
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ tier, billing: planBilling }),
         });
-        let errMsg = 'Order failed';
-        try { const e = await res.json(); errMsg = e.detail || e.message || errMsg; } catch (_) {}
-        console.error('create-order failed', res.status, errMsg);
-        toast(`${errMsg} (${res.status})`);
-        return true;
+        if (!res.ok) {
+          let raw = '';
+          let errMsg = 'Order failed';
+          try { raw = await res.clone().text(); const e = JSON.parse(raw); errMsg = e.detail || e.message || errMsg; } catch (_) {}
+          console.error('create-order failed', 'status=', res.status, 'ok=', res.ok, 'url=', res.url, 'raw=', raw.slice(0,300));
+          toast(`${errMsg} (${res.status})`);
+          return true;
+        }
         const data = await res.json();
         if (data.provider === 'razorpay' && data.razorpay_order_id) {
           writePlan({ tier, billing: planBilling, status: 'pending' });
@@ -321,7 +324,7 @@ async function handlePlanAction(action, button) {
                 amount: data.amount,
                 currency: 'INR',
                 name: 'StockSetu',
-                description: `${plan.name} plan (${billing === 'yearly' ? 'yearly' : 'monthly'})`,
+                description: `${plan.name} plan (${planBilling === 'yearly' ? 'yearly' : 'monthly'})`,
                 order_id: data.razorpay_order_id,
                 prefill: { email: (typeof getUser === 'function' ? getUser() : '') },
                 theme: { color: '#2f6042' },
