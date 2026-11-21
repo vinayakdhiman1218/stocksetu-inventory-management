@@ -324,7 +324,7 @@ async function handlePlanAction(action, button) {
         const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.upi_uri)}`;
         showModal(`Pay ₹${(data.amount/100).toLocaleString('en-IN')}`, `Upgrade to ${plan.name}`, `<div class="plan-pay-box">
           <p>Scan this QR with any UPI app (PhonePe, GPay, Paytm) and pay. Then enter the UTR number to auto-activate.</p>
-          <div class="plan-pay-qr"><img src="${qrImg}" alt="UPI QR" width="220" height="220"><br><code>${escapeHTML(data.upi_uri)}</code></div>
+          <div class="plan-pay-qr"><img src="${qrImg}" alt="UPI QR" width="220" height="220"><p class="plan-pay-hint">Kisi bhi UPI app (PhonePe, GPay, Paytm, BHIM) se scan karo aur pay karo.</p></div>
           <div class="field"><label>UTR / Reference number</label><input id="utr-input" type="text" placeholder="12-digit UTR" maxlength="40"></div>
           <div class="modal-actions">
             <button class="btn btn-sm" data-action="confirm-manual-payment" data-order="${escapeHTML(data.order_ref)}">I have paid ${icon('check')}</button>
