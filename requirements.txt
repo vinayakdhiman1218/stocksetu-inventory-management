@@ -7,3 +7,4 @@ google-auth[requests]>=2.30,<3
 python-dotenv>=1.0,<2
 paytmchecksum>=1.7
 pycryptodome>=3.20
+razorpay>=1.4

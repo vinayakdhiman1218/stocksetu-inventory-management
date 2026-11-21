@@ -904,12 +904,21 @@ def billing_subscription(db: Session = Depends(get_db), current_user: models.Use
 @app.post("/billing/create-order")
 def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     tier = payload.tier
-    billing = payload.billing
+    billing = payload.billing or "monthly"
+    if payload.amount is not None:
+        amount = int(payload.amount)
+        if amount < 100:
+            raise HTTPException(status_code=400, detail="Minimum amount is 100 paise")
+        if tier is None:
+            tier = "silver"
+    else:
+        if tier not in PLAN_PRICES_PAISE:
+            raise HTTPException(status_code=400, detail="Invalid plan (provide tier or amount)")
+        amount = PLAN_PRICES_PAISE[tier][billing]
     if tier not in PLAN_PRICES_PAISE:
-        raise HTTPException(status_code=400, detail="Invalid plan")
-    amount = PLAN_PRICES_PAISE[tier][billing]
+        tier = "silver"
 
-    order_ref = "ORD-" + uuid.uuid4().hex[:12].upper()
+    order_ref = payload.receipt or ("ORD-" + uuid.uuid4().hex[:12].upper())
     order = models.PaymentOrder(
         user_id=current_user.id,
         order_ref=order_ref,
@@ -953,8 +962,10 @@ def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depe
         db.refresh(order)
         return {
             "provider": "razorpay",
+            "order_id": rz_order_id,
             "order_ref": order_ref,
             "amount": amount,
+            "currency": "INR",
             "key_id": razorpay_key_id,
             "razorpay_order_id": rz_order_id,
         }
@@ -1053,7 +1064,7 @@ def billing_create_order(payload: schemas.BillingCreateOrder, db: Session = Depe
     db.commit()
     db.refresh(order)
     upi_uri = f"upi://pay?pa={vpa}&pn={urllib.parse.quote(payee)}&am={amount/100:.2f}&cu=INR&tn={urllib.parse.quote(tier + ' plan')}"
-    return {"provider": "manual", "order_ref": order_ref, "amount": amount, "upi_uri": upi_uri, "status": "created"}
+    return {"provider": "manual", "order_ref": order_ref, "amount": amount, "currency": "INR", "upi_uri": upi_uri, "status": "created"}
 
 
 import urllib.parse
@@ -1215,7 +1226,10 @@ def billing_verify_razorpay(payload: schemas.BillingVerifyRazorpay, db: Session 
     expected = hmac.new(razorpay_key_secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, payload.razorpay_signature):
         raise HTTPException(status_code=400, detail="Invalid Razorpay signature")
-    order = db.query(models.PaymentOrder).filter(models.PaymentOrder.order_ref == payload.order_ref, models.PaymentOrder.user_id == current_user.id).first()
+    if payload.order_ref:
+        order = db.query(models.PaymentOrder).filter(models.PaymentOrder.order_ref == payload.order_ref, models.PaymentOrder.user_id == current_user.id).first()
+    else:
+        order = db.query(models.PaymentOrder).filter(models.PaymentOrder.provider_order_id == payload.razorpay_order_id, models.PaymentOrder.user_id == current_user.id).first()
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.provider != "razorpay":
@@ -1232,6 +1246,17 @@ def billing_verify_razorpay(payload: schemas.BillingVerifyRazorpay, db: Session 
     db.refresh(order)
     sub = _get_or_create_subscription(db, current_user.id)
     return {"status": "paid", "tier": order.tier, "subscription_tier": sub.tier}
+
+
+# --- /api aliases for standard integration paths ---
+@app.post("/api/create-order")
+def api_create_order(payload: schemas.BillingCreateOrder, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return billing_create_order(payload, db, current_user)
+
+
+@app.post("/api/verify-payment")
+def api_verify_payment(payload: schemas.BillingVerifyRazorpay, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return billing_verify_razorpay(payload, db, current_user)
 
 
 @app.post("/billing/webhook/razorpay")

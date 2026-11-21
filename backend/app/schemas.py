@@ -45,8 +45,11 @@ class AssistantLLM(BaseModel):
 
 
 class BillingCreateOrder(BaseModel):
-    tier: str = Field(pattern="^(silver|gold|diamond)$")
+    tier: str | None = Field(default=None, pattern="^(silver|gold|diamond)$")
     billing: str = Field(default="monthly", pattern="^(monthly|yearly)$")
+    amount: int | None = Field(default=None, ge=100)
+    currency: str = Field(default="INR")
+    receipt: str | None = Field(default=None, max_length=64)
 
 
 class BillingConfirmManual(BaseModel):
@@ -55,7 +58,7 @@ class BillingConfirmManual(BaseModel):
 
 
 class BillingVerifyRazorpay(BaseModel):
-    order_ref: str = Field(min_length=6, max_length=64)
+    order_ref: str | None = Field(default=None, max_length=64)
     razorpay_payment_id: str = Field(min_length=6, max_length=64)
     razorpay_order_id: str = Field(min_length=6, max_length=64)
     razorpay_signature: str = Field(min_length=16, max_length=256)
