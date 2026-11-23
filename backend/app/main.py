@@ -38,71 +38,76 @@ from .email_verification import (
     send_verification_email,
 )
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
-# Add product fields to existing local SQLite / hosted databases without deleting rows.
-with engine.begin() as connection:
-    product_columns = {column["name"] for column in inspect(engine).get_columns("products")}
-    for column_name, definition in (
-        ("sku", "VARCHAR(60) NOT NULL DEFAULT ''"),
-        ("unit", "VARCHAR(30) NOT NULL DEFAULT 'pieces'"),
-        ("supplier", "VARCHAR(160) NOT NULL DEFAULT ''"),
-        ("user_id", "INTEGER REFERENCES users(id)"),
-    ):
-        if column_name not in product_columns:
-            connection.execute(text(f"ALTER TABLE products ADD COLUMN {column_name} {definition}"))
-    for table_name in ("suppliers", "purchases", "sales", "products"):
-        columns = {column["name"] for column in inspect(engine).get_columns(table_name)}
-        if "user_id" not in columns and table_name != "products":
-            connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
-        if "created_at" not in columns:
-            connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE"))
-        connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
-    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
-    user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
-    for column_name, definition in (
-        ("google_sub", "VARCHAR(255)"),
-        ("apple_sub", "VARCHAR(255)"),
-        # Preserve login access for accounts created before email verification existed.
-        ("email_verified", "BOOLEAN NOT NULL DEFAULT TRUE"),
-        ("email_verification_token_hash", "VARCHAR(64)"),
-        ("email_verification_expires_at", "TIMESTAMP WITH TIME ZONE"),
-        ("email_verification_sent_at", "TIMESTAMP WITH TIME ZONE"),
-    ):
-        if column_name not in user_columns:
-            connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
-    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
-    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_apple_sub ON users (apple_sub)"))
-    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_verification_token_hash ON users (email_verification_token_hash)"))
-    # Billing tables migration for existing deployments.
-    try:
-        payment_order_columns = {column["name"] for column in inspect(engine).get_columns("payment_orders")}
-        if "provider_order_id" not in payment_order_columns:
-            connection.execute(text("ALTER TABLE payment_orders ADD COLUMN provider_order_id VARCHAR(120)"))
-        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_payment_orders_provider_order_id ON payment_orders (provider_order_id)"))
-    except Exception:
-        pass
-    try:
-        subscription_columns = {column["name"] for column in inspect(engine).get_columns("subscriptions")}
-    except Exception:
-        subscription_columns = set()
-    # (no new subscription columns needed)
-    # Password reset columns.
-    try:
+try:
+    # Create database tables
+    Base.metadata.create_all(bind=engine)
+    # Add product fields to existing local SQLite / hosted databases without deleting rows.
+    with engine.begin() as connection:
+        product_columns = {column["name"] for column in inspect(engine).get_columns("products")}
+        for column_name, definition in (
+            ("sku", "VARCHAR(60) NOT NULL DEFAULT ''"),
+            ("unit", "VARCHAR(30) NOT NULL DEFAULT 'pieces'"),
+            ("supplier", "VARCHAR(160) NOT NULL DEFAULT ''"),
+            ("user_id", "INTEGER REFERENCES users(id)"),
+        ):
+            if column_name not in product_columns:
+                connection.execute(text(f"ALTER TABLE products ADD COLUMN {column_name} {definition}"))
+        for table_name in ("suppliers", "purchases", "sales", "products"):
+            columns = {column["name"] for column in inspect(engine).get_columns(table_name)}
+            if "user_id" not in columns and table_name != "products":
+                connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+            if "created_at" not in columns:
+                connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE"))
+            connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
         user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
         for column_name, definition in (
-            ("password_reset_token_hash", "VARCHAR(64)"),
-            ("password_reset_expires_at", "TIMESTAMP WITH TIME ZONE"),
+            ("google_sub", "VARCHAR(255)"),
+            ("apple_sub", "VARCHAR(255)"),
+            # Preserve login access for accounts created before email verification existed.
+            ("email_verified", "BOOLEAN NOT NULL DEFAULT TRUE"),
+            ("email_verification_token_hash", "VARCHAR(64)"),
+            ("email_verification_expires_at", "TIMESTAMP WITH TIME ZONE"),
+            ("email_verification_sent_at", "TIMESTAMP WITH TIME ZONE"),
         ):
             if column_name not in user_columns:
                 connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
-    except Exception:
-        pass
-    # Team members + audit logs + refresh tokens.
-    try:
-        Base.metadata.create_all(bind=engine, tables=[models.TeamMember.__table__, models.AuditLog.__table__, models.RefreshToken.__table__])
-    except Exception:
-        pass
+        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
+        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_apple_sub ON users (apple_sub)"))
+        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_verification_token_hash ON users (email_verification_token_hash)"))
+        # Billing tables migration for existing deployments.
+        try:
+            payment_order_columns = {column["name"] for column in inspect(engine).get_columns("payment_orders")}
+            if "provider_order_id" not in payment_order_columns:
+                connection.execute(text("ALTER TABLE payment_orders ADD COLUMN provider_order_id VARCHAR(120)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_payment_orders_provider_order_id ON payment_orders (provider_order_id)"))
+        except Exception:
+            pass
+        try:
+            subscription_columns = {column["name"] for column in inspect(engine).get_columns("subscriptions")}
+        except Exception:
+            subscription_columns = set()
+        # (no new subscription columns needed)
+        # Password reset columns.
+        try:
+            user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
+            for column_name, definition in (
+                ("password_reset_token_hash", "VARCHAR(64)"),
+                ("password_reset_expires_at", "TIMESTAMP WITH TIME ZONE"),
+            ):
+                if column_name not in user_columns:
+                    connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
+        except Exception:
+            pass
+        # Team members + audit logs + refresh tokens.
+        try:
+            Base.metadata.create_all(bind=engine, tables=[models.TeamMember.__table__, models.AuditLog.__table__, models.RefreshToken.__table__])
+        except Exception:
+            pass
+
+except Exception as _mig_err:
+    import logging
+    logging.getLogger(__name__).exception("startup migration failed: %s", _mig_err)
 
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
