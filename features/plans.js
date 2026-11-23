@@ -174,7 +174,7 @@ function planPage() {
         ${price > 0 ? `<small>/${billing === 'yearly' ? 'year' : 'month'}</small>` : ''}
       </div>
       <ul class="plan-tile-features">${pl.features.map(f => `<li>${icon('check')} ${escapeHTML(f)}</li>`).join('')}</ul>
-      ${isCurrent ? `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Current plan</button>` : (pl.priceMonthly > plan.priceMonthly ? `<button class="btn btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Upgrade ${icon('arrow')}</button>` : `<button class="btn btn-light btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Downgrade</button>`)}
+      ${isCurrent ? `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Current plan</button>` : (() => { const curPrice = planPrice(plan, (readPlan().billing || 'monthly')); const tgtPrice = planPrice(pl, billing); return tgtPrice > curPrice ? `<button class="btn btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Upgrade ${icon('arrow')}</button>` : (tgtPrice < curPrice ? `<button class="btn btn-light btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Downgrade</button>` : `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Same price</button>`); })()}
     </article>`;
   }).join('');
 
@@ -316,7 +316,9 @@ async function handlePlanAction(action, button) {
     const plan = PLAN_CATALOG.find(x => x.id === tier);
     if (!plan) return false;
     const current = currentPlan();
-    if (plan.priceMonthly < current.priceMonthly) { downgradeModal(tier); return true; }
+    const curPrice = planPrice(current, (readPlan().billing || 'monthly'));
+    const tgtPrice = planPrice(plan, planBilling);
+    if (tgtPrice < curPrice) { downgradeModal(tier); return true; }
     if (plan.priceMonthly === 0) {
       writePlan({ tier, billing: planBilling, status: 'active' });
       toast(`${plan.name} plan activated.`);
