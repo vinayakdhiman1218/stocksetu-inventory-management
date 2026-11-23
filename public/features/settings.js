@@ -23,6 +23,8 @@ function settingsPage() {
     ['invoice', 'receipt', 'Invoice preferences'],
     ['notifications', 'bell', 'Notifications'],
     ['whatsapp', 'phone', 'WhatsApp reminders'],
+    ['audit', 'shield', 'Audit log'],
+    ['export', 'download', 'Data export'],
   ];
   let panel = '';
   if (activeSettingsTab === 'profile') {
@@ -38,6 +40,17 @@ function settingsPage() {
     } else {
       panel = `<div class="panel-header"><div><h2>WhatsApp reminders</h2><p>Send low-stock, unpaid invoice and daily summary alerts to WhatsApp.</p></div><i class="settings-emblem">${icon('phone')}</i></div><form id="whatsapp-settings-form" class="settings-form"><div class="modal-grid"><div class="field"><label for="wa-phone">WhatsApp number</label><input id="wa-phone" name="phone" type="tel" maxlength="40" placeholder="+91 98765 43210"></div><div class="field"><label>Provider</label><p class="password-hint">Set WHATSAPP_PROVIDER (twilio/meta) + credentials on server to actually send. Otherwise intent is logged.</p></div></div><label class="preference-row"><span><b>Enable WhatsApp reminders</b><small>Master switch for all WhatsApp alerts.</small></span><input type="checkbox" name="enabled"></label><label class="preference-row"><span><b>Low-stock alerts</b><small>Alert when products hit reorder level.</small></span><input type="checkbox" name="lowStockAlerts"></label><label class="preference-row"><span><b>Unpaid invoice alerts</b><small>Summary of unpaid invoices.</small></span><input type="checkbox" name="dueInvoiceAlerts"></label><label class="preference-row"><span><b>Daily summary</b><small>Products, sales and stock value.</small></span><input type="checkbox" name="dailySummary"></label><div class="form-footer"><span>Saved to your account.</span><button class="btn btn-sm" type="submit">Save preferences ${icon('check')}</button><button class="btn btn-light btn-sm" type="button" data-action="wa-test">Send test ${icon('arrow')}</button><button class="btn btn-light btn-sm" type="button" data-action="wa-dispatch">Send now ${icon('arrow')}</button></div></form>`;
     }
+  } else if (activeSettingsTab === 'audit') {
+    const isDiamond = currentPlanId() === 'diamond';
+    if (!isDiamond) {
+      panel = `<div class="panel-header"><div><h2>Audit log</h2><p>Diamond plan feature.</p></div><i class="settings-emblem">${icon('shield')}</i></div><div class="plan-locked-box"><i>${icon('lock')}</i><h3>Upgrade to Diamond</h3><p>Audit log unlocks on Diamond plan.</p><button class="btn btn-sm" data-action="select-plan" data-plan="diamond">Upgrade to Diamond ${icon('arrow')}</button></div>`;
+    } else {
+      panel = `<div class="panel-header"><div><h2>Audit log</h2><p>Recent activity in your workspace.</p></div><i class="settings-emblem">${icon('shield')}</i></div><div id="audit-log-list" class="table-wrap"><p class="password-hint">Loading…</p></div>`;
+      setTimeout(loadAuditLog, 0);
+    }
+  } else if (activeSettingsTab === 'export') {
+    const isDiamond = currentPlanId() === 'diamond';
+    panel = `<div class="panel-header"><div><h2>Data export & backup</h2><p>Download all your data or schedule automatic backups.</p></div><i class="settings-emblem">${icon('download')}</i></div><div class="form-footer"><button class="btn btn-sm" type="button" data-action="export-data">Download all data (JSON) ${icon('download')}</button>${isDiamond ? '<button class="btn btn-light btn-sm" type="button" data-action="schedule-backup">Schedule daily backup (Diamond)</button>' : '<p class="password-hint">Scheduled backups unlock on Diamond.</p>'}</div>`;
   } else if (activeSettingsTab === 'notifications') {
     panel = `<div class="panel-header"><div><h2>Notifications</h2><p>Choose which in-app reminders appear in your workspace.</p></div><i class="settings-emblem">${icon('bell')}</i></div><form id="notification-settings-form" class="settings-form"><label class="preference-row"><span><b>Low-stock reminders</b><small>Show products at or below their reorder level.</small></span><input type="checkbox" name="lowStock" ${extras.notifications.lowStock ? 'checked' : ''}></label><label class="preference-row"><span><b>Unpaid invoice reminders</b><small>Include unpaid invoices when you open Notifications.</small></span><input type="checkbox" name="unpaidInvoices" ${extras.notifications.unpaidInvoices ? 'checked' : ''}></label><div class="form-footer"><span>These are in-app reminders.</span><button class="btn btn-sm" type="submit">Save preferences ${icon('check')}</button></div></form>`;
   }
@@ -149,3 +162,32 @@ window.loadWhatsAppSettings = loadWhatsAppSettings;
 window.saveWhatsAppSettings = saveWhatsAppSettings;
 window.testWhatsApp = testWhatsApp;
 window.dispatchWhatsApp = dispatchWhatsApp;
+
+async function loadAuditLog() {
+  const node = document.querySelector('#audit-log-list');
+  if (!node) return;
+  try {
+    const rows = await apiRequest('/audit/logs');
+    if (!rows || !rows.length) { node.innerHTML = '<p class="password-hint">No activity yet.</p>'; return; }
+    node.innerHTML = `<table><thead><tr><th>ACTION</th><th>TARGET</th><th>DETAIL</th><th>WHEN</th></tr></thead><tbody>${rows.map(r => `<tr><td>${escapeHTML(r.action)}</td><td>${escapeHTML(r.target || '')}</td><td>${escapeHTML(r.detail || '')}</td><td>${escapeHTML(r.created_at || '')}</td></tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    node.innerHTML = `<p class="password-hint">${escapeHTML(e.message || 'Failed to load.')}</p>`;
+  }
+}
+
+async function exportAllData() {
+  try {
+    const data = await apiRequest('/data/export');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'stocksetu-export.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('Data exported.');
+  } catch (e) {
+    toast(e.message || 'Export failed');
+  }
+}
+
+window.loadAuditLog = loadAuditLog;
+window.exportAllData = exportAllData;

@@ -248,7 +248,9 @@ function bindPlans() {
 function planCardSidebar() {
   const plan = currentPlan();
   const p = readPlan();
-  return `<i>${icon('spark')}</i><b>${escapeHTML(plan.name)} plan.</b><p>${plan.priceMonthly === 0 ? 'Free forever.' : '₹' + planPrice(plan, p.billing || 'monthly').toLocaleString('en-IN') + '/' + ((p.billing || 'monthly') === 'yearly' ? 'yr' : 'mo')}. Upgrade for more.</p><button data-page="Plans">View plans ${icon('arrow')}</button>`;
+  const isTop = plan.id === 'diamond';
+  const cta = isTop ? `<span class="plan-card-max">Top plan · all features unlocked</span>` : `<button data-page="Plans">View plans ${icon('arrow')}</button>`;
+  return `<i>${icon('spark')}</i><b>${escapeHTML(plan.name)} plan.</b><p>${plan.priceMonthly === 0 ? 'Free forever.' : '₹' + planPrice(plan, p.billing || 'monthly').toLocaleString('en-IN') + '/' + ((p.billing || 'monthly') === 'yearly' ? 'yr' : 'mo')}.${isTop ? '' : ' Upgrade for more.'}</p>${cta}`;
 }
 function planAuthExpired(res) {
   if (res && res.status === 401) {

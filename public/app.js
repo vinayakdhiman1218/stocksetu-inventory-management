@@ -237,6 +237,7 @@ function renderDashboard() {
   document.querySelector('#settings-form')?.addEventListener('submit', saveBusinessSettings);
   document.querySelector('#invoice-settings-form')?.addEventListener('submit', saveInvoicePreferences);
   document.querySelector('#notification-settings-form')?.addEventListener('submit', saveNotificationPreferences);
+  document.querySelector('[data-action="export-data"]')?.addEventListener('click', exportAllData);
   const waForm = document.querySelector('#whatsapp-settings-form');
   if (waForm) {
     loadWhatsAppSettings();
@@ -340,6 +341,8 @@ async function handleAction(button) {
     document.documentElement.dataset.theme=next; localStorage.setItem('stocksetu-theme',next); renderDashboard(); return;
   }
   if(action==='add-product')openProductModal();
+  if(action==='export-data'){exportAllData();return;}
+  if(action==='schedule-backup'){toast('Scheduled backups require a cron job on the server. Contact support to enable.');return;}
   if(action==='print-labels'){printLabels();return;}
   if(action==='new-sale')openSaleModal();
   if(action==='assistant-quick')askStockSathi(button.dataset.q);
