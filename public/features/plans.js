@@ -35,7 +35,7 @@ const PLAN_CATALOG = [
     priceMonthly: 999, priceYearly: 9999,
     highlight: false,
     tagline: 'Chain / multi-branch — sab kuch unlimited.',
-    features: ['Everything in Gold', 'Unlimited users', 'Multi-branch / multi-location', 'Custom roles & permissions', 'API access + webhooks', 'Audit log', 'Scheduled data export / backup', 'White-label invoice + custom domain', 'Dedicated support + onboarding'],
+    features: ['Everything in Gold', 'Unlimited users', 'Multi-branch / multi-location', 'Custom roles & permissions', 'Audit log', 'Scheduled data export / backup', 'White-label invoice + custom domain', 'Dedicated support + onboarding'],
     matrix: { csv: true, reports: 'advanced', stockSathi: 'full', teamRoles: true, barcode: true, multiWarehouse: true, multiBranch: true, api: true, audit: true, branding: 'whitelabel' },
   },
 ];

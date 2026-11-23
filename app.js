@@ -237,6 +237,13 @@ function renderDashboard() {
   document.querySelector('#settings-form')?.addEventListener('submit', saveBusinessSettings);
   document.querySelector('#invoice-settings-form')?.addEventListener('submit', saveInvoicePreferences);
   document.querySelector('#notification-settings-form')?.addEventListener('submit', saveNotificationPreferences);
+  const waForm = document.querySelector('#whatsapp-settings-form');
+  if (waForm) {
+    loadWhatsAppSettings();
+    waForm.addEventListener('submit', saveWhatsAppSettings);
+  }
+  document.querySelector('[data-action="wa-test"]')?.addEventListener('click', testWhatsApp);
+  document.querySelector('[data-action="wa-dispatch"]')?.addEventListener('click', dispatchWhatsApp);
   if (activePage === 'Overview' || activePage === 'Reports') drawDashboardChart();
 }
 function pageHeader(title, subtitle, actions = '') { const today=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase(); return `<div class="page-heading"><div><div class="eyebrow">${escapeHTML(title === 'Overview' ? today : 'YOUR BUSINESS')}</div><h1>${title === 'Overview' ? `Good morning, ${escapeHTML(getUser())} 👋` : escapeHTML(title)}</h1><p>${escapeHTML(subtitle)}</p></div><div class="heading-actions">${actions}</div></div>`; }
@@ -333,6 +340,7 @@ async function handleAction(button) {
     document.documentElement.dataset.theme=next; localStorage.setItem('stocksetu-theme',next); renderDashboard(); return;
   }
   if(action==='add-product')openProductModal();
+  if(action==='print-labels'){printLabels();return;}
   if(action==='new-sale')openSaleModal();
   if(action==='assistant-quick')askStockSathi(button.dataset.q);
   if(action==='open-assistant')openAssistant(id);

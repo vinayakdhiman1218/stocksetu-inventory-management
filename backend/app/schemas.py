@@ -161,3 +161,19 @@ class AuditLogOut(BaseModel):
     target: Optional[str] = None
     detail: Optional[str] = None
     created_at: Optional[datetime] = None
+
+
+class WhatsAppSettingsUpdate(BaseModel):
+    enabled: bool = False
+    phone: str = Field(default="", max_length=40)
+    low_stock_alerts: bool = True
+    due_invoice_alerts: bool = True
+    daily_summary: bool = False
+
+
+class WhatsAppSettingsOut(BaseModel):
+    enabled: bool
+    phone: str
+    low_stock_alerts: bool
+    due_invoice_alerts: bool
+    daily_summary: bool

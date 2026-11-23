@@ -112,6 +112,19 @@ class AuditLog(Base):
     created_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class WhatsAppSettings(Base):
+    __tablename__ = "whatsapp_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    enabled = Column(Boolean, nullable=False, default=False)
+    phone = Column(String(40), nullable=False, default="")
+    low_stock_alerts = Column(Boolean, nullable=False, default=True)
+    due_invoice_alerts = Column(Boolean, nullable=False, default=True)
+    daily_summary = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class PaymentOrder(Base):
     __tablename__ = "payment_orders"
 

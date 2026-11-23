@@ -22,6 +22,7 @@ function settingsPage() {
     ['team', 'users', 'Team & access'],
     ['invoice', 'receipt', 'Invoice preferences'],
     ['notifications', 'bell', 'Notifications'],
+    ['whatsapp', 'phone', 'WhatsApp reminders'],
   ];
   let panel = '';
   if (activeSettingsTab === 'profile') {
@@ -30,7 +31,14 @@ function settingsPage() {
     panel = teamAccessPage();
   } else if (activeSettingsTab === 'invoice') {
     panel = `<div class="panel-header"><div><h2>Invoice preferences</h2><p>Choose the reference format and payment terms for new invoices.</p></div><i class="settings-emblem">${icon('receipt')}</i></div><form id="invoice-settings-form" class="settings-form"><div class="modal-grid"><div class="field"><label for="invoice-prefix">Invoice prefix</label><input id="invoice-prefix" name="prefix" maxlength="12" value="${escapeHTML(extras.invoice.prefix)}" required></div><div class="field"><label for="invoice-number">Next invoice number</label><input id="invoice-number" name="nextNumber" type="number" min="1" max="999999999" value="${Number(extras.invoice.nextNumber)}" required></div><div class="field"><label for="payment-terms">Default payment terms</label><select id="payment-terms" name="paymentTerms">${['Due on receipt', '7 days', '15 days', '30 days', '45 days'].map(term => `<option ${extras.invoice.paymentTerms === term ? 'selected' : ''}>${term}</option>`).join('')}</select></div><div class="field"><label for="invoice-footer">Invoice note</label><input id="invoice-footer" name="footer" maxlength="240" placeholder="A short note shown on invoices" value="${escapeHTML(extras.invoice.footer)}"></div></div><div class="form-footer"><span>Applied to future invoices on this device.</span><button class="btn btn-sm" type="submit">Save preferences ${icon('check')}</button></div></form>`;
-  } else {
+  } else if (activeSettingsTab === 'whatsapp') {
+    const isGold = ['gold','diamond'].includes(currentPlanId());
+    if (!isGold) {
+      panel = `<div class="panel-header"><div><h2>WhatsApp reminders</h2><p>Gold plan feature.</p></div><i class="settings-emblem">${icon('phone')}</i></div><div class="plan-locked-box"><i>${icon('lock')}</i><h3>Upgrade to Gold</h3><p>WhatsApp reminders, low-stock alerts and daily summaries unlock on Gold plan.</p><button class="btn btn-sm" data-action="select-plan" data-plan="gold">Upgrade to Gold ${icon('arrow')}</button></div>`;
+    } else {
+      panel = `<div class="panel-header"><div><h2>WhatsApp reminders</h2><p>Send low-stock, unpaid invoice and daily summary alerts to WhatsApp.</p></div><i class="settings-emblem">${icon('phone')}</i></div><form id="whatsapp-settings-form" class="settings-form"><div class="modal-grid"><div class="field"><label for="wa-phone">WhatsApp number</label><input id="wa-phone" name="phone" type="tel" maxlength="40" placeholder="+91 98765 43210"></div><div class="field"><label>Provider</label><p class="password-hint">Set WHATSAPP_PROVIDER (twilio/meta) + credentials on server to actually send. Otherwise intent is logged.</p></div></div><label class="preference-row"><span><b>Enable WhatsApp reminders</b><small>Master switch for all WhatsApp alerts.</small></span><input type="checkbox" name="enabled"></label><label class="preference-row"><span><b>Low-stock alerts</b><small>Alert when products hit reorder level.</small></span><input type="checkbox" name="lowStockAlerts"></label><label class="preference-row"><span><b>Unpaid invoice alerts</b><small>Summary of unpaid invoices.</small></span><input type="checkbox" name="dueInvoiceAlerts"></label><label class="preference-row"><span><b>Daily summary</b><small>Products, sales and stock value.</small></span><input type="checkbox" name="dailySummary"></label><div class="form-footer"><span>Saved to your account.</span><button class="btn btn-sm" type="submit">Save preferences ${icon('check')}</button><button class="btn btn-light btn-sm" type="button" data-action="wa-test">Send test ${icon('arrow')}</button><button class="btn btn-light btn-sm" type="button" data-action="wa-dispatch">Send now ${icon('arrow')}</button></div></form>`;
+    }
+  } else if (activeSettingsTab === 'notifications') {
     panel = `<div class="panel-header"><div><h2>Notifications</h2><p>Choose which in-app reminders appear in your workspace.</p></div><i class="settings-emblem">${icon('bell')}</i></div><form id="notification-settings-form" class="settings-form"><label class="preference-row"><span><b>Low-stock reminders</b><small>Show products at or below their reorder level.</small></span><input type="checkbox" name="lowStock" ${extras.notifications.lowStock ? 'checked' : ''}></label><label class="preference-row"><span><b>Unpaid invoice reminders</b><small>Include unpaid invoices when you open Notifications.</small></span><input type="checkbox" name="unpaidInvoices" ${extras.notifications.unpaidInvoices ? 'checked' : ''}></label><div class="form-footer"><span>These are in-app reminders.</span><button class="btn btn-sm" type="submit">Save preferences ${icon('check')}</button></div></form>`;
   }
   return `${pageHeader('Settings', 'Manage your business and workspace preferences.', '')}<div class="settings-layout"><nav class="settings-tabs" aria-label="Settings sections">${tabs.map(([key, glyph, label]) => `<button class="${activeSettingsTab === key ? 'active' : ''}" data-settings-tab="${key}" aria-current="${activeSettingsTab === key ? 'page' : 'false'}">${icon(glyph)} ${label}</button>`).join('')}</nav><section class="panel settings-panel">${panel}</section></div>`;
@@ -85,3 +93,59 @@ function openNotifications() {
 function openHelpModal() {
   showModal('StockSetu help', 'A quick guide to the workspace.', `<div class="help-list"><p><b>Inventory:</b> Add products, set a reorder level, and adjust counted stock.</p><p><b>Sales & invoices:</b> Create an invoice from available stock, record payment status, and print or save a PDF.</p><p><b>Purchases:</b> Record incoming quantities and supplier details.</p><p><b>Reports:</b> Review totals and export a CSV from each section.</p><p><b>Settings:</b> Save your business profile and set invoice and in-app reminder preferences.</p></div><div class="modal-actions"><button class="btn btn-sm modal-cancel" type="button">Close</button></div>`);
 }
+
+async function loadWhatsAppSettings() {
+  try {
+    const data = await apiRequest('/whatsapp/settings');
+    const form = document.querySelector('#whatsapp-settings-form');
+    if (!form || !data) return;
+    form.querySelector('[name="phone"]').value = data.phone || '';
+    form.querySelector('[name="enabled"]').checked = !!data.enabled;
+    form.querySelector('[name="lowStockAlerts"]').checked = !!data.low_stock_alerts;
+    form.querySelector('[name="dueInvoiceAlerts"]').checked = !!data.due_invoice_alerts;
+    form.querySelector('[name="dailySummary"]').checked = !!data.daily_summary;
+  } catch (e) {
+    // plan-gated or not configured; ignore
+  }
+}
+
+async function saveWhatsAppSettings(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = new FormData(form);
+  try {
+    await apiRequest('/whatsapp/settings', { method: 'POST', body: JSON.stringify({
+      enabled: values.has('enabled'),
+      phone: (values.get('phone') || '').trim(),
+      low_stock_alerts: values.has('lowStockAlerts'),
+      due_invoice_alerts: values.has('dueInvoiceAlerts'),
+      daily_summary: values.has('dailySummary'),
+    }) });
+    toast('WhatsApp preferences saved.');
+  } catch (e) {
+    toast(e.message || 'Save failed');
+  }
+}
+
+async function testWhatsApp() {
+  try {
+    const r = await apiRequest('/whatsapp/test', { method: 'POST' });
+    toast(r.message || 'Test queued.');
+  } catch (e) {
+    toast(e.message || 'Test failed');
+  }
+}
+
+async function dispatchWhatsApp() {
+  try {
+    const r = await apiRequest('/whatsapp/dispatch', { method: 'POST' });
+    toast(r.message || 'Dispatched.');
+  } catch (e) {
+    toast(e.message || 'Dispatch failed');
+  }
+}
+
+window.loadWhatsAppSettings = loadWhatsAppSettings;
+window.saveWhatsAppSettings = saveWhatsAppSettings;
+window.testWhatsApp = testWhatsApp;
+window.dispatchWhatsApp = dispatchWhatsApp;

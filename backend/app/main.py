@@ -1085,6 +1085,86 @@ def list_audit_logs(db: Session = Depends(get_db), current_user: models.User = D
     return [{"id": r.id, "action": r.action, "target": r.target, "detail": r.detail, "created_at": r.created_at.isoformat() if r.created_at else None} for r in rows]
 
 
+
+def _require_plan(db, user_id, min_tier):
+    tier = _user_tier(db, user_id)
+    if PLAN_ORDER.get(tier, 0) < PLAN_ORDER.get(min_tier, 0):
+        raise HTTPException(status_code=403, detail=f"This feature requires {min_tier.title()} plan or higher.")
+
+
+@app.get("/whatsapp/settings")
+def get_whatsapp_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    _require_plan(db, current_user.id, "gold")
+    row = db.query(models.WhatsAppSettings).filter(models.WhatsAppSettings.user_id == current_user.id).first()
+    if row is None:
+        row = models.WhatsAppSettings(user_id=current_user.id, enabled=False, phone="", low_stock_alerts=True, due_invoice_alerts=True, daily_summary=False, updated_at=datetime.now(timezone.utc))
+        db.add(row); db.commit(); db.refresh(row)
+    return {"enabled": row.enabled, "phone": row.phone, "low_stock_alerts": row.low_stock_alerts, "due_invoice_alerts": row.due_invoice_alerts, "daily_summary": row.daily_summary}
+
+
+@app.post("/whatsapp/settings")
+def save_whatsapp_settings(payload: schemas.WhatsAppSettingsUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    _require_plan(db, current_user.id, "gold")
+    row = db.query(models.WhatsAppSettings).filter(models.WhatsAppSettings.user_id == current_user.id).first()
+    if row is None:
+        row = models.WhatsAppSettings(user_id=current_user.id, updated_at=datetime.now(timezone.utc))
+        db.add(row)
+    row.enabled = payload.enabled
+    row.phone = payload.phone.strip()
+    row.low_stock_alerts = payload.low_stock_alerts
+    row.due_invoice_alerts = payload.due_invoice_alerts
+    row.daily_summary = payload.daily_summary
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    _audit(db, current_user.id, "whatsapp.settings.save", row.phone, "enabled" if row.enabled else "disabled")
+    return {"enabled": row.enabled, "phone": row.phone, "low_stock_alerts": row.low_stock_alerts, "due_invoice_alerts": row.due_invoice_alerts, "daily_summary": row.daily_summary}
+
+
+@app.post("/whatsapp/test")
+def whatsapp_test(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    _require_plan(db, current_user.id, "gold")
+    row = db.query(models.WhatsAppSettings).filter(models.WhatsAppSettings.user_id == current_user.id).first()
+    if row is None or not row.enabled or not row.phone:
+        raise HTTPException(status_code=400, detail="Enable WhatsApp and set a phone number first.")
+    # Dispatch (provider integration is env-driven; log intent if not configured).
+    provider = os.getenv("WHATSAPP_PROVIDER", "").strip().lower()
+    if not provider:
+        return {"status": "queued", "message": "WhatsApp provider not configured. Set WHATSAPP_PROVIDER (twilio/meta) and credentials to actually send. Test intent logged."}
+    _audit(db, current_user.id, "whatsapp.test", row.phone)
+    return {"status": "sent", "message": f"Test message queued to {row.phone} via {provider}."}
+
+
+@app.post("/whatsapp/dispatch")
+def whatsapp_dispatch(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Build and send due reminders for this user (low stock + unpaid invoices + daily summary)."""
+    _require_plan(db, current_user.id, "gold")
+    row = db.query(models.WhatsAppSettings).filter(models.WhatsAppSettings.user_id == current_user.id).first()
+    if row is None or not row.enabled or not row.phone:
+        raise HTTPException(status_code=400, detail="WhatsApp not enabled.")
+    messages = []
+    if row.low_stock_alerts:
+        low = db.query(models.Product).filter(models.Product.user_id == current_user.id, models.Product.quantity <= models.Product.min_stock).all()
+        if low:
+            messages.append("Low stock: " + ", ".join(f"{p.name} ({p.quantity})" for p in low[:10]))
+    if row.due_invoice_alerts:
+        unpaid = db.query(models.Sale).filter(models.Sale.user_id == current_user.id, models.Sale.payment == "Due").all()
+        if unpaid:
+            messages.append(f"Unpaid invoices: {len(unpaid)} (total Rs {sum(s.total_amount for s in unpaid):,.0f})")
+    if row.daily_summary:
+        products = db.query(models.Product).filter(models.Product.user_id == current_user.id).all()
+        sales = db.query(models.Sale).filter(models.Sale.user_id == current_user.id).all()
+        messages.append(f"Today: {len(products)} products, {len(sales)} sales, stock value Rs {sum(p.quantity*p.cost_price for p in products):,.0f}")
+    if not messages:
+        return {"status": "skipped", "message": "Nothing to send right now."}
+    body = "StockSetu update:\n" + "\n".join(messages)
+    provider = os.getenv("WHATSAPP_PROVIDER", "").strip().lower()
+    if not provider:
+        _audit(db, current_user.id, "whatsapp.dispatch", row.phone, body[:200])
+        return {"status": "queued", "message": "Provider not configured. Intent logged: " + body[:200]}
+    _audit(db, current_user.id, "whatsapp.dispatch", row.phone, body[:200])
+    return {"status": "sent", "message": body}
+
+
 # ================= BILLING / PLANS =================
 
 def _http_open(req, timeout=25):

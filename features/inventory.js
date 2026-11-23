@@ -2,7 +2,8 @@
 function inventoryPage() {
   const inStock = state.products.filter(product => productStatus(product).className === '').length;
   const stockValue = state.products.reduce((sum,p) => sum + p.quantity * p.cost,0);
-  return `${pageHeader('Inventory','Keep every item, quantity and reorder level in one place.',actionButton('Adjust stock','stock-adjust','light','filter')+actionButton('Add product','add-product'))}
+  const actions = actionButton('Adjust stock','stock-adjust','light','filter')+actionButton('Add product','add-product') + (['gold','diamond'].includes(currentPlanId()) ? actionButton('Print labels','print-labels','light','tag') : '');
+  return `${pageHeader('Inventory','Keep every item, quantity and reorder level in one place.',actions)}"
     <div class="stat-grid compact-stats">${statCard('Total products',state.products.length,'box','In your catalogue')}${statCard('Healthy products',inStock,'check','Above reorder level')}${statCard('Stock value',money(stockValue),'coins','At purchase cost')}${statCard('Needs a restock',lowProducts().length,'bell','Low or out of stock',lowProducts().length?'down':'')}</div>
     <section class="panel table-panel"><div class="table-toolbar"><div><h2>All products <span class="soft-count">${state.products.length}</span></h2><p>Search or filter to find what you need.</p></div><div class="table-tools"><label class="search">${icon('search')}<input type="search" id="table-search" placeholder="Search name, SKU…" value="${escapeHTML(searchTerm)}" aria-label="Search products"></label><select class="select-mini" id="status-filter"><option value="all" ${statusFilter==='all'?'selected':''}>All status</option><option value="low" ${statusFilter==='low'?'selected':''}>Low stock</option><option value="out" ${statusFilter==='out'?'selected':''}>Out of stock</option></select></div></div><div class="table-wrap"><table><thead><tr><th>PRODUCT</th><th>SKU</th><th>STOCK</th><th>BUY PRICE</th><th>SELL PRICE</th><th>STATUS</th><th></th></tr></thead><tbody id="product-rows">${filteredProducts().map(productRow).join('') || '<tr><td class="table-empty" colspan="7">No products match this filter.</td></tr>'}</tbody></table></div><div class="table-bottom"><span>Showing ${filteredProducts().length} of ${state.products.length} products</span><span>Stock changes update automatically with each sale or purchase</span></div></section>`;
 }
@@ -105,3 +106,11 @@ async function handleAdjustmentForm(form,data,type) {
     if(!product||qty<1||product.quantity+qty*direction<0){form.querySelector('.form-error').hidden=false;return;}
     try { await persistProductChanges([{product,changes:{quantity:product.quantity+qty*direction}}]); } catch(error) { toast(`Could not adjust stock: ${error.message}`); return; }const movementId=`ADJ-${String(state.movements.length+1).padStart(4,'0')}`;state.movements.unshift({id:nextMovementId(),productId:String(product.id),product:product.name,sku:product.sku,type:'Stock adjustment',delta:qty*direction,unit:product.unit,reference:movementId,date:daysAgo(0),note:String(data.note).trim()||'Manual stock count'});state.activity.unshift({text:'Stock adjusted',detail:`${product.name} · ${qty*direction>0?'+':''}${qty*direction} ${product.unit}`,time:'Just now',icon:'box'});saveAll(['products','movements','activity']);closeModal();renderDashboard();toast('Stock adjusted and movement recorded.');return;
 }
+
+function printLabels() {
+  const products = state.products || [];
+  if (!products.length) { toast('Add products first.'); return; }
+  const body = products.map(p => `<div class="label-card"><div class="label-name">${escapeHTML(p.name)}</div><div class="label-sku">${escapeHTML(p.sku)}</div><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(p.sku || p.name)}" width="120" height="120" alt="QR"><div class="label-price">${money(p.selling_price)}</div></div>`).join('');
+  showModal('Product labels', 'Print or save as PDF', `<div class="label-sheet">${body}</div><div class="modal-actions"><button class="btn btn-sm" type="button" onclick="window.print()">Print ${icon('download')}</button><button class="btn btn-light btn-sm" data-action="close-modal">Close</button></div>`);
+}
+window.printLabels = printLabels;

@@ -769,3 +769,9 @@ html[data-theme="dark"] .plan-current-left b,html[data-theme="dark"] .plan-usage
   .plan-grid,.launch-plan-grid{grid-template-columns:1fr}
   .launch-plan-card.launch-plan-highlight{transform:none}
 }
+
+.label-sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 8px 0; }
+.label-card { border: 1px dashed #999; padding: 10px; text-align: center; border-radius: 6px; }
+.label-card .label-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.label-card .label-sku { font-size: 11px; color: #666; margin-bottom: 6px; }
+.label-card .label-price { font-weight: 700; margin-top: 6px; }
