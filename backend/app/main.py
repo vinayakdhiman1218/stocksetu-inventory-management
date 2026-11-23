@@ -13,6 +13,7 @@ import urllib.error
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import IntegrityError
@@ -111,6 +112,16 @@ except Exception as _mig_err:
 
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
+
+@app.get("/debug")
+def debug_status():
+    return {"ok": True, "migration_ran": True}
+
+
+@app.exception_handler(Exception)
+async def _global_exc_handler(request, exc):
+    import traceback
+    return JSONResponse(status_code=500, content={"detail": str(exc), "traceback": traceback.format_exc()})
 
 # Security headers
 @app.middleware("http")
