@@ -3,7 +3,7 @@ function brandPageHome() {
   root.innerHTML = `
     <div class="scroll-progress" aria-hidden="true"></div>
     <header class="launch-nav"><div class="launch-nav-inner">${brand()}
-      <nav class="nav-links" id="site-nav" aria-label="Main navigation"><a href="#capabilities">What you can do</a><a href="#workflow">How it works</a><a href="#plans">Plans</a><a href="#why-stocksetu">Why StockSetu</a></nav>
+      <nav class="nav-links" id="site-nav" aria-label="Main navigation"><a href="#capabilities">What you can do</a><a href="#workflow">How it works</a><a href="#plans">Pricing</a><a href="#why-stocksetu">Why StockSetu</a></nav>
       <div class="launch-actions"><button class="launch-theme" id="home-theme-toggle" type="button" aria-label="Switch to ${document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'} mode" aria-pressed="${document.documentElement.dataset.theme === 'dark'}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}</button><a class="launch-login" href="#/login">Log in</a><a class="launch-cta" href="#/register">Get started ${icon('arrow')}</a><button class="menu-toggle" id="menu-toggle" aria-label="Open navigation">${icon('menu')}</button></div>
     </div></header>
     <main class="launch-page">
@@ -41,6 +41,10 @@ function brandPageHome() {
   const nav = document.querySelector('#site-nav');
   document.querySelector('#menu-toggle')?.addEventListener('click', () => nav.classList.toggle('open'));
   nav.querySelectorAll('a').forEach(link => link.addEventListener('click', () => nav.classList.remove('open')));
+  root.onclick = event => {
+    const action = event.target.closest('[data-action]');
+    if (action) { if (typeof handleAction === 'function') handleAction(action); }
+  };
   document.querySelector('#home-theme-toggle')?.addEventListener('click', () => {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;

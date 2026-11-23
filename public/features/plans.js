@@ -299,7 +299,7 @@ async function handlePlanAction(action, button) {
       localStorage.setItem('stocksetu-plan-billing', billing);
       const p = readPlan();
       writePlan({ ...p, billing });
-      renderDashboard();
+      if (location.hash === '#/dashboard' || location.hash.startsWith('#/dashboard')) renderDashboard();
       if (document.querySelector('.launch-plan-grid')) {
         // re-render landing plans section in place
         const sec = document.querySelector('#plans');
