@@ -113,26 +113,6 @@ except Exception as _mig_err:
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
 
-@app.get("/debug")
-def debug_status():
-    return {"ok": True, "migration_ran": True}
-
-
-@app.exception_handler(Exception)
-async def _global_exc_handler(request, exc):
-    import traceback
-    return JSONResponse(status_code=500, content={"detail": str(exc), "traceback": traceback.format_exc()})
-
-# Security headers
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
-    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-    return response
-
 # Allow the frontend to communicate with the backend
 app.add_middleware(
     CORSMiddleware,
