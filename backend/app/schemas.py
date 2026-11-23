@@ -52,6 +52,11 @@ class BillingCreateOrder(BaseModel):
     receipt: str | None = Field(default=None, max_length=64)
 
 
+class BillingDowngrade(BaseModel):
+    tier: str = Field(pattern="^(free|silver|gold|diamond)$")
+    billing: str = Field(default="monthly", pattern="^(monthly|yearly)$")
+
+
 class BillingConfirmManual(BaseModel):
     order_ref: str = Field(min_length=6, max_length=64)
     utr: str = Field(min_length=6, max_length=40)

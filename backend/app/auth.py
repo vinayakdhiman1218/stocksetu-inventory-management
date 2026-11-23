@@ -31,7 +31,7 @@ if not SECRET_KEY:
     SECRET_KEY = "stocksetu-local-development-only-change-before-deploying"
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_TTL_HOURS = int(os.getenv("ACCESS_TOKEN_TTL_HOURS", "12"))
+ACCESS_TOKEN_TTL_HOURS = int(os.getenv("ACCESS_TOKEN_TTL_HOURS", "168"))
 password_hasher = PasswordHash.recommended()
 
 

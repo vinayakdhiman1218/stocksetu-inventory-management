@@ -115,6 +115,29 @@ function upgradeModal(targetId) {
   showModal('Upgrade required', 'Plan limit cross ho gaya', body);
 }
 
+function downgradeModal(targetId) {
+  const target = PLAN_CATALOG.find(p => p.id === targetId);
+  const current = currentPlan();
+  if (!target || target.priceMonthly >= current.priceMonthly) return false;
+  const limit = PLAN_LIMITS[target.id];
+  const productLimit = limit.products === Infinity ? 'Unlimited' : limit.products;
+  const invoiceLimit = limit.invoices === Infinity ? 'Unlimited' : limit.invoices;
+  const userLimit = limit.users === Infinity ? 'Unlimited' : limit.users;
+  showModal('Downgrade plan', `Switch from ${current.name} to ${target.name}?`, `<div class="plan-upgrade-modal">
+    <p class="plan-upgrade-copy">Downgrade <b>turant</b> apply hoga. ${escapeHTML(target.name)} plan ke limits lag jayenge — data safe rahega, bas naye products/invoices aur premium features limit honge.</p>
+    <ul class="plan-tile-features">
+      <li>${icon('check')} ${productLimit} products</li>
+      <li>${icon('check')} ${invoiceLimit} invoices / month</li>
+      <li>${icon('check')} ${userLimit} user${userLimit === 1 ? '' : 's'}</li>
+    </ul>
+    <div class="plan-upgrade-actions">
+      <button class="btn btn-danger btn-sm" data-action="confirm-downgrade" data-plan="${escapeHTML(target.id)}">Yes, downgrade to ${escapeHTML(target.name)}</button>
+      <button class="btn btn-light btn-sm" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`);
+  return true;
+}
+
 function planUsageBar(label, used, limit) {
   const pct = (limit === Infinity) ? Math.min(100, used) : Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
   const displayLimit = limit === Infinity ? '∞' : limit;
@@ -151,7 +174,7 @@ function planPage() {
         ${price > 0 ? `<small>/${billing === 'yearly' ? 'year' : 'month'}</small>` : ''}
       </div>
       <ul class="plan-tile-features">${pl.features.map(f => `<li>${icon('check')} ${escapeHTML(f)}</li>`).join('')}</ul>
-      ${isCurrent ? `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Current plan</button>` : (pl.priceMonthly > plan.priceMonthly ? `<button class="btn btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Upgrade ${icon('arrow')}</button>` : `<span class="plan-tile-cta plan-tile-locked">—</span>`)}
+      ${isCurrent ? `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Current plan</button>` : (pl.priceMonthly > plan.priceMonthly ? `<button class="btn btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Upgrade ${icon('arrow')}</button>` : `<button class="btn btn-light btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Downgrade</button>`)}
     </article>`;
   }).join('');
 
@@ -174,7 +197,7 @@ function planPage() {
 
   const matrixHtml = `<div class="plan-matrix-wrap"><table class="plan-matrix"><thead><tr><th>Feature</th>${PLAN_CATALOG.map(pl => `<th>${escapeHTML(pl.name)}</th>`).join('')}</tr></thead><tbody>${matrixRows.map(([label, vals]) => `<tr><td>${escapeHTML(label)}</td>${vals.map(v => `<td>${escapeHTML(String(v))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
-  return `${pageHeader('Plans & billing', 'Apna plan choose karo. UPI se pay, instant upgrade.', `<div class="plan-billing-toggle"><button class="plan-toggle-btn ${billing === 'monthly' ? 'active' : ''}" data-action="toggle-billing" data-billing="monthly">Monthly</button><button class="plan-toggle-btn ${billing === 'yearly' ? 'active' : ''}" data-action="toggle-billing" data-billing="yearly">Yearly <span class="plan-save-badge">Save 17%</span></button></div>`)}
+  return `${pageHeader('Plans & billing', 'Apna plan choose karo. Upgrade ya downgrade, anytime.', `<div class="plan-billing-toggle"><button class="plan-toggle-btn ${billing === 'monthly' ? 'active' : ''}" data-action="toggle-billing" data-billing="monthly">Monthly</button><button class="plan-toggle-btn ${billing === 'yearly' ? 'active' : ''}" data-action="toggle-billing" data-billing="yearly">Yearly <span class="plan-save-badge">Save 17%</span></button></div>`)}
     <div class="plan-current-card">
       <div class="plan-current-left"><i>${icon('spark')}</i><div><b>${escapeHTML(plan.name)} plan</b><small>${plan.priceMonthly === 0 ? 'Free forever' : '₹' + planPrice(plan, billing).toLocaleString('en-IN') + '/' + (billing === 'yearly' ? 'yr' : 'mo')} · ${escapeHTML(p.status)}</small></div></div>
       <div class="plan-usage">
@@ -193,6 +216,7 @@ function planPage() {
       <details><summary>Can multiple staff members use one account?</summary><p>Yes. Silver supports 2 users, Gold 5 users and Diamond unlimited users, with role-based access.</p></details>
       <details><summary>Is there a refund policy?</summary><p>Full refund within 7 days, no questions asked.</p></details>
       <details><summary>Can I switch between monthly and yearly billing?</summary><p>Yes, anytime. Yearly plans save you about 17% compared to monthly.</p></details>
+      <details><summary>Can I downgrade my plan?</summary><p>Yes. You can move to a lower plan anytime from this page. The change applies immediately and your data stays safe.</p></details>
     </div>`;
 }
 
@@ -226,12 +250,19 @@ function planCardSidebar() {
   const p = readPlan();
   return `<i>${icon('spark')}</i><b>${escapeHTML(plan.name)} plan.</b><p>${plan.priceMonthly === 0 ? 'Free forever.' : '₹' + planPrice(plan, p.billing || 'monthly').toLocaleString('en-IN') + '/' + ((p.billing || 'monthly') === 'yearly' ? 'yr' : 'mo')}. Upgrade for more.</p><button data-page="Plans">View plans ${icon('arrow')}</button>`;
 }
+function planAuthExpired(res) {
+  if (res && res.status === 401) {
+    if (typeof handleAuthExpired === 'function') handleAuthExpired();
+    return true;
+  }
+  return false;
+}
 async function syncPlanFromBackend() {
   try {
     const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
     if (!token) return;
     const res = await fetch(`${API_BASE_URL}/billing/subscription`, { headers: { 'Authorization': 'Bearer ' + token } });
-    if (!res.ok) return;
+    if (!res.ok) { planAuthExpired(res); return; }
     const data = await res.json();
     if (data && data.tier) {
       const p = readPlan();
@@ -247,7 +278,7 @@ async function handlePaymentReturn() {
     const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
     if (!token) return;
     const res = await fetch(`${API_BASE_URL}/billing/status/${encodeURIComponent(order)}`, { headers: { 'Authorization': 'Bearer ' + token } });
-    if (!res.ok) return;
+    if (!res.ok) { planAuthExpired(res); return; }
     const data = await res.json();
     if (data.status === 'paid') {
       await syncPlanFromBackend();
@@ -283,7 +314,7 @@ async function handlePlanAction(action, button) {
     const plan = PLAN_CATALOG.find(x => x.id === tier);
     if (!plan) return false;
     const current = currentPlan();
-    if (plan.priceMonthly < current.priceMonthly) { toast('Downgrade is not available.'); return true; }
+    if (plan.priceMonthly < current.priceMonthly) { downgradeModal(tier); return true; }
     if (plan.priceMonthly === 0) {
       writePlan({ tier, billing: planBilling, status: 'active' });
       toast(`${plan.name} plan activated.`);
@@ -299,6 +330,7 @@ async function handlePlanAction(action, button) {
           body: JSON.stringify({ tier, billing: planBilling }),
         });
         if (!res.ok) {
+          if (planAuthExpired(res)) return true;
           let raw = '';
           let errMsg = 'Order failed';
           try { raw = await res.clone().text(); const e = JSON.parse(raw); errMsg = e.detail || e.message || errMsg; } catch (_) {}
@@ -349,7 +381,13 @@ async function handlePlanAction(action, button) {
                         razorpay_signature: response.razorpay_signature,
                       }),
                     });
-                    if (!r.ok) { const e = await r.json().catch(()=>({})); toast(e.detail || 'Verification failed'); reject(new Error('verify failed')); return; }
+                    if (!r.ok) {
+                      if (planAuthExpired(r)) { reject(new Error('Session expired')); return; }
+                      const e = await r.json().catch(()=>({}));
+                      toast(e.detail || 'Verification failed');
+                      reject(new Error('verify failed'));
+                      return;
+                    }
                     await syncPlanFromBackend();
                     toast('Payment successful! Plan upgraded.');
                     renderDashboard();
@@ -409,7 +447,12 @@ async function handlePlanAction(action, button) {
               headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
               body: JSON.stringify({ order_ref: btn.dataset.order, utr }),
             });
-            if (!r.ok) { const e = await r.json().catch(()=>({})); toast(e.detail || 'Confirm failed'); return; }
+            if (!r.ok) {
+              if (planAuthExpired(r)) return;
+              const e = await r.json().catch(()=>({}));
+              toast(e.detail || 'Confirm failed');
+              return;
+            }
             await syncPlanFromBackend();
             closeModal();
             toast('Payment confirmed. Plan upgraded!');
@@ -419,6 +462,35 @@ async function handlePlanAction(action, button) {
       } catch (e) {
         toast('Network error: ' + e.message);
       }
+    }
+    return true;
+  }
+  if (action === 'confirm-downgrade') {
+    const tier = button.dataset.plan;
+    const target = PLAN_CATALOG.find(p => p.id === tier);
+    if (!target) return true;
+    try {
+      const token = (typeof getAuthToken === 'function') ? getAuthToken() : null;
+      if (!token) { toast('Please log in first.'); return true; }
+      const res = await fetch(`${API_BASE_URL}/billing/downgrade`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier, billing: planBilling }),
+      });
+      if (planAuthExpired(res)) return true;
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        toast(e.detail || 'Downgrade failed');
+        return true;
+      }
+      const data = await res.json();
+      writePlan({ tier: data.tier || tier, billing: data.billing || planBilling, status: 'active' });
+      closeModal();
+      await syncPlanFromBackend();
+      toast(`Plan downgraded to ${target.name}.`);
+      renderDashboard();
+    } catch (e) {
+      toast('Downgrade error: ' + e.message);
     }
     return true;
   }

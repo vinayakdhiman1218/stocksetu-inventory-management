@@ -61,6 +61,15 @@ function readStore(key, fallback) {
 }
 function accountId() { try { const token=getAuthToken(); const part=token?.split('.')[1]; if(part){const payload=JSON.parse(atob(part.replace(/-/g,'+').replace(/_/g,'/')));if(payload.sub)return String(payload.sub);} } catch {} return String(localStorage.getItem('stocksetu-user') || 'guest').trim().toLowerCase(); }
 function getAuthToken() { return localStorage.getItem('stocksetu-token') || sessionStorage.getItem('stocksetu-token'); }
+function handleAuthExpired() {
+  localStorage.removeItem('stocksetu-token');
+  sessionStorage.removeItem('stocksetu-token');
+  localStorage.removeItem('stocksetu-user');
+  state.settings = { ...seed.settings };
+  if (location.hash !== '#/login') location.hash = '#/login';
+  toast('Session expired. Please log in again.');
+}
+window.handleAuthExpired = handleAuthExpired;
 function saveStore(key) { localStorage.setItem(`stocksetu-account:${accountId()}:${key}`, JSON.stringify(state[key])); }
 function hydrateAccountData() { for (const [key, fallback] of Object.entries(seed)) state[key] = readStore(key, fallback); }
 function nextMovementId() { const latest=Math.max(0,...state.movements.map(m=>Number(String(m.id).match(/(\d+)$/)?.[1])||0)); return `MOV-${String(latest+1).padStart(4,'0')}`; }
@@ -150,6 +159,7 @@ async function apiRequest(path, options = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401) handleAuthExpired();
     throw new Error(
       (data && data.detail) || `Request failed: ${response.status}`
     );

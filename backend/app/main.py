@@ -890,6 +890,8 @@ PLAN_PRICES_PAISE = {
     "diamond": {"monthly": 99900,  "yearly": 999900},
 }
 
+PLAN_ORDER = {"free": 0, "silver": 1, "gold": 2, "diamond": 3}
+
 PLAN_DURATION_DAYS = {"monthly": 30, "yearly": 365}
 
 
@@ -912,6 +914,23 @@ def billing_subscription(db: Session = Depends(get_db), current_user: models.Use
         "status": sub.status,
         "expires_at": sub.expires_at.isoformat() if sub.expires_at else None,
     }
+
+
+@app.post("/billing/downgrade")
+def billing_downgrade(payload: schemas.BillingDowngrade, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    target = payload.tier.strip().lower()
+    sub = _get_or_create_subscription(db, current_user.id)
+    current = (sub.tier or "free").strip().lower()
+    if PLAN_ORDER.get(target, 0) >= PLAN_ORDER.get(current, 0):
+        raise HTTPException(status_code=400, detail="This is not a downgrade. Choose a lower plan.")
+    sub.tier = target
+    sub.billing = payload.billing or sub.billing or "monthly"
+    sub.status = "active"
+    sub.expires_at = None
+    sub.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(sub)
+    return {"tier": sub.tier, "billing": sub.billing, "status": sub.status, "expires_at": None}
 
 
 @app.post("/billing/create-order")
