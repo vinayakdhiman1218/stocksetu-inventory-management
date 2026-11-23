@@ -1,7 +1,5 @@
 
 import os
-import hashlib
-import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -52,14 +50,6 @@ def create_access_token(user_id: int) -> str:
     expires_at = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_TTL_HOURS)
     payload = {"sub": str(user_id), "exp": expires_at}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-
-def create_refresh_token() -> str:
-    return secrets.token_urlsafe(48)
-
-
-def hash_refresh_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 # JWT Token Verification
 security = HTTPBearer(auto_error=False)

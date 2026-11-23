@@ -126,36 +126,3 @@ class BusinessSettingsUpdate(BaseModel):
     email: str = Field(default="", max_length=254)
     address: str = Field(default="", max_length=500)
     currency: str = Field(default="INR", min_length=3, max_length=3)
-
-
-class ForgotPasswordRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=254)
-
-
-class ResetPasswordRequest(BaseModel):
-    token: str = Field(min_length=10, max_length=200)
-    new_password: str = Field(min_length=8, max_length=128)
-
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str = Field(min_length=10, max_length=500)
-
-
-class TeamMemberCreate(BaseModel):
-    email: str = Field(min_length=3, max_length=254)
-    role: str = Field(default="viewer", pattern="^(admin|biller|accountant|stock_keeper|viewer)$")
-
-
-class TeamMemberOut(BaseModel):
-    id: int
-    email: str
-    role: str
-    status: str
-
-
-class AuditLogOut(BaseModel):
-    id: int
-    action: str
-    target: Optional[str] = None
-    detail: Optional[str] = None
-    created_at: Optional[datetime] = None
