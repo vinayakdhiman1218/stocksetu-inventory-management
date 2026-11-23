@@ -13,7 +13,6 @@ import urllib.error
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import IntegrityError
@@ -26,8 +25,6 @@ from .auth import (
     hash_password,
     verify_password,
     create_access_token,
-    create_refresh_token,
-    hash_refresh_token,
     get_current_user,
     GOOGLE_CLIENT_ID,
     APPLE_CLIENT_ID,
@@ -39,76 +36,55 @@ from .email_verification import (
     send_verification_email,
 )
 
-try:
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
-    # Add product fields to existing local SQLite / hosted databases without deleting rows.
-    with engine.begin() as connection:
-        product_columns = {column["name"] for column in inspect(engine).get_columns("products")}
-        for column_name, definition in (
-            ("sku", "VARCHAR(60) NOT NULL DEFAULT ''"),
-            ("unit", "VARCHAR(30) NOT NULL DEFAULT 'pieces'"),
-            ("supplier", "VARCHAR(160) NOT NULL DEFAULT ''"),
-            ("user_id", "INTEGER REFERENCES users(id)"),
-        ):
-            if column_name not in product_columns:
-                connection.execute(text(f"ALTER TABLE products ADD COLUMN {column_name} {definition}"))
-        for table_name in ("suppliers", "purchases", "sales", "products"):
-            columns = {column["name"] for column in inspect(engine).get_columns(table_name)}
-            if "user_id" not in columns and table_name != "products":
-                connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
-            if "created_at" not in columns:
-                connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE"))
-            connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
-        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
-        user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
-        for column_name, definition in (
-            ("google_sub", "VARCHAR(255)"),
-            ("apple_sub", "VARCHAR(255)"),
-            # Preserve login access for accounts created before email verification existed.
-            ("email_verified", "BOOLEAN NOT NULL DEFAULT TRUE"),
-            ("email_verification_token_hash", "VARCHAR(64)"),
-            ("email_verification_expires_at", "TIMESTAMP WITH TIME ZONE"),
-            ("email_verification_sent_at", "TIMESTAMP WITH TIME ZONE"),
-        ):
-            if column_name not in user_columns:
-                connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
-        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
-        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_apple_sub ON users (apple_sub)"))
-        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_verification_token_hash ON users (email_verification_token_hash)"))
-        # Billing tables migration for existing deployments.
-        try:
-            payment_order_columns = {column["name"] for column in inspect(engine).get_columns("payment_orders")}
-            if "provider_order_id" not in payment_order_columns:
-                connection.execute(text("ALTER TABLE payment_orders ADD COLUMN provider_order_id VARCHAR(120)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_payment_orders_provider_order_id ON payment_orders (provider_order_id)"))
-        except Exception:
-            pass
-        try:
-            subscription_columns = {column["name"] for column in inspect(engine).get_columns("subscriptions")}
-        except Exception:
-            subscription_columns = set()
-        # (no new subscription columns needed)
-        # Password reset columns.
-        try:
-            user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
-            for column_name, definition in (
-                ("password_reset_token_hash", "VARCHAR(64)"),
-                ("password_reset_expires_at", "TIMESTAMP WITH TIME ZONE"),
-            ):
-                if column_name not in user_columns:
-                    connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
-        except Exception:
-            pass
-        # Team members + audit logs + refresh tokens.
-        try:
-            Base.metadata.create_all(bind=engine, tables=[models.TeamMember.__table__, models.AuditLog.__table__, models.RefreshToken.__table__])
-        except Exception:
-            pass
-
-except Exception as _mig_err:
-    import logging
-    logging.getLogger(__name__).exception("startup migration failed: %s", _mig_err)
+# Create database tables
+Base.metadata.create_all(bind=engine)
+# Add product fields to existing local SQLite / hosted databases without deleting rows.
+with engine.begin() as connection:
+    product_columns = {column["name"] for column in inspect(engine).get_columns("products")}
+    for column_name, definition in (
+        ("sku", "VARCHAR(60) NOT NULL DEFAULT ''"),
+        ("unit", "VARCHAR(30) NOT NULL DEFAULT 'pieces'"),
+        ("supplier", "VARCHAR(160) NOT NULL DEFAULT ''"),
+        ("user_id", "INTEGER REFERENCES users(id)"),
+    ):
+        if column_name not in product_columns:
+            connection.execute(text(f"ALTER TABLE products ADD COLUMN {column_name} {definition}"))
+    for table_name in ("suppliers", "purchases", "sales", "products"):
+        columns = {column["name"] for column in inspect(engine).get_columns(table_name)}
+        if "user_id" not in columns and table_name != "products":
+            connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+        if "created_at" not in columns:
+            connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE"))
+        connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
+    user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
+    for column_name, definition in (
+        ("google_sub", "VARCHAR(255)"),
+        ("apple_sub", "VARCHAR(255)"),
+        # Preserve login access for accounts created before email verification existed.
+        ("email_verified", "BOOLEAN NOT NULL DEFAULT TRUE"),
+        ("email_verification_token_hash", "VARCHAR(64)"),
+        ("email_verification_expires_at", "TIMESTAMP WITH TIME ZONE"),
+        ("email_verification_sent_at", "TIMESTAMP WITH TIME ZONE"),
+    ):
+        if column_name not in user_columns:
+            connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
+    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
+    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_apple_sub ON users (apple_sub)"))
+    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_verification_token_hash ON users (email_verification_token_hash)"))
+    # Billing tables migration for existing deployments.
+    try:
+        payment_order_columns = {column["name"] for column in inspect(engine).get_columns("payment_orders")}
+        if "provider_order_id" not in payment_order_columns:
+            connection.execute(text("ALTER TABLE payment_orders ADD COLUMN provider_order_id VARCHAR(120)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_payment_orders_provider_order_id ON payment_orders (provider_order_id)"))
+    except Exception:
+        pass
+    try:
+        subscription_columns = {column["name"] for column in inspect(engine).get_columns("subscriptions")}
+    except Exception:
+        subscription_columns = set()
+    # (no new subscription columns needed)
 
 # Create FastAPI application
 app = FastAPI(title="StockSetu Inventory Management")
@@ -148,7 +124,6 @@ def add_product(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    _enforce_plan_limit(db, current_user.id, "products")
     new_product = models.Product(**product.model_dump(), user_id=current_user.id, created_at=datetime.now(timezone.utc))
     db.add(new_product)
     db.commit()
@@ -246,7 +221,6 @@ def delete_supplier(supplier_id: int, db: Session = Depends(get_db), current_use
 # Purchases are recorded against products and suppliers in the current workspace.
 @app.post("/purchases")
 def add_purchase(purchase: schemas.PurchaseCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    _enforce_plan_limit(db, current_user.id, "purchases_month")
     product = db.query(models.Product).filter(models.Product.id == purchase.product_id, models.Product.user_id == current_user.id).first()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -270,7 +244,6 @@ def get_purchases(db: Session = Depends(get_db), current_user: models.User = Dep
 # Sales reduce stock only for products in the current workspace.
 @app.post("/sales")
 def add_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    _enforce_plan_limit(db, current_user.id, "invoices_month")
     product = db.query(models.Product).filter(models.Product.id == sale.product_id, models.Product.user_id == current_user.id).first()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -676,70 +649,11 @@ def register_user(
 
 
 # Login - Public API
-_LOGIN_ATTEMPTS = {}
-
-
-def _login_rate_key(request: Request, email: str):
-    client = request.client.host if request.client else "unknown"
-    return f"{client}:{email.strip().casefold()}"
-
-
-def _check_login_rate_limit(request: Request, email: str):
-    key = _login_rate_key(request, email)
-    now = datetime.now(timezone.utc).timestamp()
-    window = 15 * 60
-    attempts = [t for t in _LOGIN_ATTEMPTS.get(key, []) if now - t < window]
-    _LOGIN_ATTEMPTS[key] = attempts
-    if len(attempts) >= 5:
-        raise HTTPException(status_code=429, detail="Too many login attempts. Try again in 15 minutes.")
-
-
-def _record_login_failure(request: Request, email: str):
-    key = _login_rate_key(request, email)
-    _LOGIN_ATTEMPTS.setdefault(key, []).append(datetime.now(timezone.utc).timestamp())
-
-
-def _clear_login_failures(request: Request, email: str):
-    _LOGIN_ATTEMPTS.pop(_login_rate_key(request, email), None)
-
-
 @app.post("/login")
 def login_user(
-    request: Request,
     user: schemas.UserLogin,
     db: Session = Depends(get_db)
 ):
-    _check_login_rate_limit(request, user.email)
-    normalized_email = user.email.strip().casefold()
-    existing_user = db.query(models.User).filter(
-        func.lower(models.User.email) == normalized_email
-    ).first()
-
-    if existing_user is None or not verify_password(user.password, existing_user.password_hash):
-        _record_login_failure(request, user.email)
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    if not existing_user.email_verified:
-        _record_login_failure(request, user.email)
-        raise HTTPException(
-            status_code=403,
-            detail="Please verify your email before logging in. Use the resend option to request a fresh link.",
-        )
-
-    _clear_login_failures(request, user.email)
-    _audit(db, existing_user.id, 'auth.login')
-
-    # Issue a refresh token (30 days).
-    refresh_raw = create_refresh_token()
-    refresh_row = models.RefreshToken(
-        user_id=existing_user.id,
-        token_hash=hash_refresh_token(refresh_raw),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
-        created_at=datetime.now(timezone.utc),
-    )
-    db.add(refresh_row)
-    db.commit()
-
     normalized_email = user.email.strip().casefold()
     existing_user = db.query(models.User).filter(
         func.lower(models.User.email) == normalized_email
@@ -758,67 +672,8 @@ def login_user(
     return {
         "message": "Login successful",
         "access_token": token,
-        "refresh_token": refresh_raw,
         "token_type": "bearer"
     }
-
-
-@app.post("/auth/refresh")
-def refresh_access_token(payload: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
-    token_hash = hash_refresh_token(payload.refresh_token)
-    row = db.query(models.RefreshToken).filter(models.RefreshToken.token_hash == token_hash).first()
-    if row is None or row.revoked:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-    expires_at = row.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if expires_at <= datetime.now(timezone.utc):
-        raise HTTPException(status_code=401, detail="Refresh token expired")
-    user = db.query(models.User).filter(models.User.id == row.user_id).first()
-    if user is None or not user.email_verified:
-        raise HTTPException(status_code=401, detail="User not found or unverified")
-    # rotate
-    row.revoked = True
-    new_raw = create_refresh_token()
-    db.add(models.RefreshToken(user_id=user.id, token_hash=hash_refresh_token(new_raw), expires_at=datetime.now(timezone.utc) + timedelta(days=30), created_at=datetime.now(timezone.utc), revoked=False))
-    db.commit()
-    return {"access_token": create_access_token(user.id), "refresh_token": new_raw, "token_type": "bearer"}
-
-
-@app.post("/auth/forgot-password")
-def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
-    normalized = payload.email.strip().casefold()
-    user = db.query(models.User).filter(func.lower(models.User.email) == normalized).first()
-    if user is not None:
-        raw = secrets.token_urlsafe(32)
-        user.password_reset_token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-        user.password_reset_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-        db.commit()
-        # Email sending depends on SMTP config; log token in dev for now.
-        try:
-            from .email_verification import send_password_reset_email
-            send_password_reset_email(user.email, raw)
-        except Exception:
-            pass
-    return {"message": "If that email is registered, a reset link has been sent."}
-
-
-@app.post("/auth/reset-password")
-def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
-    token_hash = hashlib.sha256(payload.token.encode("utf-8")).hexdigest()
-    user = db.query(models.User).filter(models.User.password_reset_token_hash == token_hash).first()
-    if user is None or user.password_reset_expires_at is None:
-        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
-    expires_at = user.password_reset_expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if expires_at <= datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Reset token expired")
-    user.password_hash = hash_password(payload.new_password)
-    user.password_reset_token_hash = None
-    user.password_reset_expires_at = None
-    db.commit()
-    return {"message": "Password reset successful. Please log in."}
 
 
 @app.post("/auth/email/verify")
@@ -1012,60 +867,6 @@ def apple_login(payload: schemas.AppleCredentialRequest, db: Session = Depends(g
 # function focused on API routes so it does not depend on a static directory
 # that Vercel excludes from its runtime bundle.
 
-
-def _audit(db, user_id, action, target=None, detail=None):
-    try:
-        db.add(models.AuditLog(user_id=user_id, action=action, target=target, detail=detail, created_at=datetime.now(timezone.utc)))
-        db.commit()
-    except Exception:
-        db.rollback()
-
-
-@app.get("/data/export")
-def export_data(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    products = db.query(models.Product).filter(models.Product.user_id == current_user.id).all()
-    sales = db.query(models.Sale).filter(models.Sale.user_id == current_user.id).all()
-    purchases = db.query(models.Purchase).filter(models.Purchase.user_id == current_user.id).all()
-    suppliers = db.query(models.Supplier).filter(models.Supplier.user_id == current_user.id).all()
-    return {
-        "exported_at": datetime.now(timezone.utc).isoformat(),
-        "products": [ {c.name: getattr(p, c.name) for c in p.__table__.columns} for p in products ],
-        "sales": [ {c.name: getattr(x, c.name) for c in x.__table__.columns} for x in sales ],
-        "purchases": [ {c.name: getattr(x, c.name) for c in x.__table__.columns} for x in purchases ],
-        "suppliers": [ {c.name: getattr(x, c.name) for c in x.__table__.columns} for x in suppliers ],
-    }
-
-
-@app.get("/team/members")
-def list_team_members(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    rows = db.query(models.TeamMember).filter(models.TeamMember.owner_user_id == current_user.id).all()
-    return [{"id": r.id, "email": r.email, "role": r.role, "status": r.status} for r in rows]
-
-
-@app.post("/team/members")
-def add_team_member(payload: schemas.TeamMemberCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    row = models.TeamMember(owner_user_id=current_user.id, email=payload.email, role=payload.role, status="active", created_at=datetime.now(timezone.utc))
-    db.add(row); db.commit(); db.refresh(row)
-    _audit(db, current_user.id, "team.member.add", payload.email, payload.role)
-    return {"id": row.id, "email": row.email, "role": row.role, "status": row.status}
-
-
-@app.delete("/team/members/{member_id}")
-def remove_team_member(member_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    row = db.query(models.TeamMember).filter(models.TeamMember.id == member_id, models.TeamMember.owner_user_id == current_user.id).first()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Team member not found")
-    db.delete(row); db.commit()
-    _audit(db, current_user.id, "team.member.remove", str(member_id))
-    return {"message": "Removed"}
-
-
-@app.get("/audit/logs")
-def list_audit_logs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    rows = db.query(models.AuditLog).filter(models.AuditLog.user_id == current_user.id).order_by(models.AuditLog.id.desc()).limit(100).all()
-    return [{"id": r.id, "action": r.action, "target": r.target, "detail": r.detail, "created_at": r.created_at.isoformat() if r.created_at else None} for r in rows]
-
-
 # ================= BILLING / PLANS =================
 
 def _http_open(req, timeout=25):
@@ -1090,43 +891,6 @@ PLAN_PRICES_PAISE = {
 }
 
 PLAN_ORDER = {"free": 0, "silver": 1, "gold": 2, "diamond": 3}
-
-PLAN_LIMITS_BACKEND = {
-    "free":    {"products": 25,   "invoices_month": 30,   "purchases_month": 20},
-    "silver":  {"products": 250,  "invoices_month": None,  "purchases_month": None},
-    "gold":    {"products": None, "invoices_month": None,  "purchases_month": None},
-    "diamond": {"products": None, "invoices_month": None,  "purchases_month": None},
-}
-
-
-def _user_tier(db, user_id):
-    sub = db.query(models.Subscription).filter(models.Subscription.user_id == user_id).first()
-    if not sub:
-        sub = models.Subscription(user_id=user_id, tier="free", billing="monthly", status="active")
-        db.add(sub); db.commit(); db.refresh(sub)
-    return (sub.tier or "free").strip().lower()
-
-
-def _enforce_plan_limit(db, user_id, kind):
-    tier = _user_tier(db, user_id)
-    limits = PLAN_LIMITS_BACKEND.get(tier, PLAN_LIMITS_BACKEND["free"])
-    cap = limits.get(kind)
-    if cap is None:
-        return
-    if kind == "products":
-        count = db.query(models.Product).filter(models.Product.user_id == user_id).count()
-    elif kind == "invoices_month":
-        now = datetime.now(timezone.utc)
-        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        count = db.query(models.Sale).filter(models.Sale.user_id == user_id, models.Sale.created_at >= start).count()
-    elif kind == "purchases_month":
-        now = datetime.now(timezone.utc)
-        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        count = db.query(models.Purchase).filter(models.Purchase.user_id == user_id, models.Purchase.created_at >= start).count()
-    else:
-        return
-    if count >= cap:
-        raise HTTPException(status_code=403, detail=f"Plan limit reached ({tier} plan: {cap} {kind.replace('_month','/month').replace('_',' ')}). Upgrade your plan to continue.")
 
 PLAN_DURATION_DAYS = {"monthly": 30, "yearly": 365}
 
@@ -1166,7 +930,6 @@ def billing_downgrade(payload: schemas.BillingDowngrade, db: Session = Depends(g
     sub.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(sub)
-    _audit(db, current_user.id, 'plan.downgrade', sub.tier, payload.billing)
     return {"tier": sub.tier, "billing": sub.billing, "status": sub.status, "expires_at": None}
 
 
@@ -1515,28 +1278,7 @@ def billing_verify_razorpay(payload: schemas.BillingVerifyRazorpay, db: Session 
     if order.status == "paid":
         sub = _get_or_create_subscription(db, current_user.id)
         return {"status": "already_paid", "tier": order.tier, "subscription_tier": sub.tier}
-    # Verify the actual payment amount against Razorpay before marking paid.
-    try:
-        rz_auth = base64.b64encode(f"{os.getenv('RAZORPAY_KEY_ID','').strip()}:{razorpay_key_secret}".encode("utf-8")).decode("ascii")
-        rz_req = urllib.request.Request(
-            f"https://api.razorpay.com/v1/payments/{payload.razorpay_payment_id}",
-            headers={"Authorization": "Basic " + rz_auth},
-            method="GET",
-        )
-        with _http_open(rz_req, timeout=20) as resp:
-            rz_payment = json.loads(resp.read().decode("utf-8"))
-        paid_amount = int(rz_payment.get("amount") or 0)
-        if paid_amount and paid_amount != order.amount:
-            raise HTTPException(status_code=400, detail="Payment amount does not match order amount")
-        if rz_payment.get("status") not in ("captured", "authorized", None):
-            raise HTTPException(status_code=400, detail="Payment not captured")
-    except HTTPException:
-        raise
-    except urllib.error.HTTPError as exc:
-        raise HTTPException(status_code=400, detail=f"Razorpay payment verification failed: HTTP {exc.code}")
-    except Exception:
-        # Network/SSL issues: allow graceful degradation.
-        pass
+    # Optional: verify amount via Razorpay API
     _mark_order_paid(db, order, payload.razorpay_payment_id)
     order.utr = payload.razorpay_payment_id
     db.commit()
