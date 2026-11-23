@@ -64,6 +64,8 @@ function getAuthToken() { return localStorage.getItem('stocksetu-token') || sess
 function handleAuthExpired() {
   localStorage.removeItem('stocksetu-token');
   sessionStorage.removeItem('stocksetu-token');
+  localStorage.removeItem('stocksetu-refresh');
+  sessionStorage.removeItem('stocksetu-refresh');
   localStorage.removeItem('stocksetu-user');
   state.settings = { ...seed.settings };
   if (location.hash !== '#/login') location.hash = '#/login';
@@ -137,34 +139,48 @@ async function loadSettingsFromBackend() {
 
 const API_BASE = API_BASE_URL;
 
-async function apiRequest(path, options = {}) {
-  const token = getAuthToken();
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    }
-  });
-
-  const text = await response.text();
-  let data;
-
+async function getRefreshToken() { return localStorage.getItem('stocksetu-refresh') || sessionStorage.getItem('stocksetu-refresh'); }
+async function tryRefreshToken() {
+  const rt = await getRefreshToken();
+  if (!rt) return false;
   try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
+    const r = await fetch(`${API_BASE}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) });
+    if (!r.ok) return false;
+    const d = await r.json();
+    if (d.access_token) { localStorage.setItem('stocksetu-token', d.access_token); }
+    if (d.refresh_token) { localStorage.setItem('stocksetu-refresh', d.refresh_token); }
+    return true;
+  } catch { return false; }
+}
 
+async function apiRequest(path, options = {}) {
+  const doFetch = async () => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    const text = await response.text();
+    let data;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    return { response, data };
+  };
+
+  let { response, data } = await doFetch();
+  if (response.status === 401 && path !== '/auth/refresh') {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      ({ response, data } = await doFetch());
+    }
+  }
   if (!response.ok) {
     if (response.status === 401) handleAuthExpired();
-    throw new Error(
-      (data && data.detail) || `Request failed: ${response.status}`
-    );
+    throw new Error((data && data.detail) || `Request failed: ${response.status}`);
   }
-
   return data;
 }
 
@@ -379,7 +395,7 @@ if(action==='delete-product'){
   if(action==='export-movements')downloadCSV('stocksetu-stock-history.csv',[['Movement','Product','SKU','Type','Change','Unit','Reference','Date','Note'],...state.movements.map(m=>[m.id,m.product,m.sku,m.type,m.delta,m.unit,m.reference,m.date,m.note])]);
   if(action==='contact-customer'){const item=state.customers.find(c=>c.id===id);if(item?.phone)window.location.href=`tel:${item.phone.replace(/[^\d+]/g,'')}`;else toast('Add a phone number to this customer first.');}
   if(action==='contact-supplier'){const item=state.suppliers.find(s=>s.id===id);if(item?.email)window.location.href=`mailto:${item.email}`;else toast('Add an email address to this supplier first.');}
-  if(action==='logout'){localStorage.removeItem('stocksetu-token');sessionStorage.removeItem('stocksetu-token');localStorage.removeItem('stocksetu-user');state.settings={...seed.settings};location.hash='#/login';}
+  if(action==='logout'){localStorage.removeItem('stocksetu-token');sessionStorage.removeItem('stocksetu-token');localStorage.removeItem('stocksetu-refresh');localStorage.removeItem('stocksetu-user');state.settings={...seed.settings};location.hash='#/login';}
   if(action==='help')openHelpModal();
   if(action==='focus-business-name')document.querySelector('#business-name')?.focus();
   if(action==='notifications')openNotifications();
@@ -432,10 +448,11 @@ function route(){
     loadProductsFromBackend();
     if (typeof syncPlanFromBackend === 'function') syncPlanFromBackend();
     if (typeof handlePaymentReturn === 'function') handlePaymentReturn();
-  }else if(path==='/login')renderLogin();else if(path==='/register')renderRegister();else brandPageHome();
+  }else if(path==='/login')renderLogin();else if(path==='/register')renderRegister();else if(path==='/reset-password')renderResetPassword();else brandPageHome();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 window.addEventListener('hashchange',route);
 root.addEventListener('click',event=>{if(event.target.closest('[data-action="close-modal"]'))closeModal();});
+window.addEventListener('storage', event => { if (event.key === 'stocksetu-plan-billing' && event.newValue) { planBilling = event.newValue; if (typeof renderDashboard === 'function' && document.querySelector('.dashboard')) renderDashboard(); } });
 preloadGoogleSignIn();
 route();

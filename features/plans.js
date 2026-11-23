@@ -436,9 +436,8 @@ async function handlePlanAction(action, button) {
           <p class="plan-upgrade-note">Order: ${escapeHTML(data.order_ref)}</p>
         </div>`);
         // bind confirm button
-        setTimeout(() => {
-          const btn = document.querySelector('[data-action="confirm-manual-payment"]');
-          if (btn) btn.addEventListener('click', async () => {
+        const btn = document.querySelector('[data-action="confirm-manual-payment"]');
+        if (btn) btn.addEventListener('click', async () => {
             const utr = (document.querySelector('#utr-input')?.value || '').trim();
             if (utr.length < 6) { toast('Enter valid UTR'); return; }
             const t = (typeof getAuthToken === 'function') ? getAuthToken() : null;
@@ -458,7 +457,7 @@ async function handlePlanAction(action, button) {
             toast('Payment confirmed. Plan upgraded!');
             renderDashboard();
           });
-        }, 0);
+
       } catch (e) {
         toast('Network error: ' + e.message);
       }

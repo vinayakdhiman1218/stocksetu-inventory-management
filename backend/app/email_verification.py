@@ -79,3 +79,54 @@ def send_verification_email(recipient: str, token: str) -> bool:
         logger.exception("Email verification delivery failed")
         return False
     return True
+
+
+def send_password_reset_email(recipient: str, token: str) -> bool:
+    host = os.getenv("SMTP_HOST", "").strip()
+    username = os.getenv("SMTP_USERNAME", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "")
+    sender = os.getenv("SMTP_FROM_EMAIL", username).strip()
+    if not host or not username or not password or not sender:
+        logger.warning("Password reset email not sent because SMTP settings are incomplete")
+        return False
+    base_url = os.getenv("APP_BASE_URL", "").strip()
+    if not base_url:
+        if os.getenv("VERCEL"):
+            vercel_domain = os.getenv("VERCEL_PROJECT_PRODUCTION_URL", "").strip()
+            base_url = f"https://{vercel_domain}" if vercel_domain else "https://stocksetu-inventory-management.vercel.app"
+        else:
+            base_url = "http://localhost:5500"
+    reset_url = f"{base_url.rstrip('/')}/#/reset-password?token={quote(token)}"
+    safe_url = html.escape(reset_url, quote=True)
+    message = EmailMessage()
+    message["Subject"] = "Reset your StockSetu password"
+    message["From"] = f"StockSetu <{sender}>"
+    message["To"] = recipient
+    message.set_content(f"Reset your password by opening this link:\n\n{reset_url}\n\nThis link expires in 1 hour.")
+    message.add_alternative(
+        "<div style='font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1b2821'>"
+        "<h1 style='color:#176b49'>Reset your password</h1>"
+        f'<p><a href="{safe_url}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#176b49;color:white;text-decoration:none">Reset password</a></p>'
+        "<p>This link expires in 1 hour.</p></div>",
+        subtype="html",
+    )
+    port = int(os.getenv("SMTP_PORT", "587"))
+    use_ssl = os.getenv("SMTP_USE_SSL", "false").strip().casefold() in {"1", "true", "yes"}
+    use_starttls = os.getenv("SMTP_USE_STARTTLS", "true").strip().casefold() in {"1", "true", "yes"}
+    try:
+        if use_ssl:
+            with smtplib.SMTP_SSL(host, port, timeout=15, context=ssl.create_default_context()) as server:
+                server.login(username, password)
+                server.send_message(message)
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as server:
+                server.ehlo()
+                if use_starttls:
+                    server.starttls(context=ssl.create_default_context())
+                    server.ehlo()
+                server.login(username, password)
+                server.send_message(message)
+    except (OSError, smtplib.SMTPException):
+        logger.exception("Password reset email delivery failed")
+        return False
+    return True

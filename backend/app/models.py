@@ -63,6 +63,8 @@ class User(Base):
     email_verification_token_hash = Column(String(64), nullable=True, unique=True)
     email_verification_expires_at = Column(DateTime(timezone=True), nullable=True)
     email_verification_sent_at = Column(DateTime(timezone=True), nullable=True)
+    password_reset_token_hash = Column(String(64), nullable=True, unique=True, index=True)
+    password_reset_expires_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class Subscription(Base):
@@ -75,6 +77,39 @@ class Subscription(Base):
     status = Column(String(20), nullable=False, default="active")
     expires_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class TeamMember(Base):
+    __tablename__ = "team_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    email = Column(String(254), nullable=False)
+    role = Column(String(40), nullable=False, default="viewer")
+    status = Column(String(20), nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    action = Column(String(80), nullable=False)
+    target = Column(String(120), nullable=True)
+    detail = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class PaymentOrder(Base):

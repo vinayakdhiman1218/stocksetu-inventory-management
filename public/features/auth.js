@@ -81,6 +81,7 @@ async function setupAppleSignIn(flow) {
         if (!data.access_token) throw new Error('The backend did not return an access token.');
         sessionStorage.removeItem('stocksetu-token');
         localStorage.setItem('stocksetu-token', data.access_token);
+        if (data.refresh_token) localStorage.setItem('stocksetu-refresh', data.refresh_token);
         localStorage.setItem('stocksetu-user', data.user?.email || '');
         state.settings = { ...seed.settings, owner: data.user?.owner_name || (data.user?.email || '').split('@', 1)[0] };
         saveStore('settings');
@@ -147,6 +148,7 @@ async function handleGoogleCredential(response) {
 
     sessionStorage.removeItem('stocksetu-token');
     localStorage.setItem('stocksetu-token', data.access_token);
+    if (data.refresh_token) localStorage.setItem('stocksetu-refresh', data.refresh_token);
     const email = data.user?.email || '';
     localStorage.setItem('stocksetu-user', email);
     state.settings = { ...seed.settings, owner: data.user?.owner_name || email.split('@', 1)[0] };
@@ -200,6 +202,7 @@ function bindPasswordAuth(flow) {
       const otherStorage = storage === localStorage ? sessionStorage : localStorage;
       otherStorage.removeItem('stocksetu-token');
       storage.setItem('stocksetu-token', data.access_token);
+      if (data.refresh_token) storage.setItem('stocksetu-refresh', data.refresh_token);
       localStorage.setItem('stocksetu-user', values.email.trim().toLowerCase());
       state.settings = { ...seed.settings, owner: values.email.trim().split('@', 1)[0] };
       saveStore('settings');
@@ -241,7 +244,7 @@ async function resendVerificationEmail(email, messageId) {
 }
 
 function renderLogin() {
-  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Use your email and password, or continue with Google.</p><div class="form-error" id="login-error" role="alert" hidden></div><form id="login-form" class="auth-form"><label class="field"><span>Email address</span><input name="email" type="email" autocomplete="username" placeholder="Your business email" maxlength="254" required /></label><label class="field"><span>Password</span><span class="password-input"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" maxlength="128" required /><button type="button" class="password-toggle" data-toggle-password="login-password" aria-label="Show password">Show</button></span></label><div class="auth-options"><label class="remember-option"><input type="checkbox" name="remember" checked /> Remember me</label><button type="button" class="text-btn" id="login-resend" hidden>Resend verification email</button></div><button class="btn login-submit" type="submit">Continue to workspace ${icon('arrow')}</button></form><div class="social-divider"><span>or continue with</span></div><div class="social-login google-only" id="google-login-login" hidden><div class="google-signin" id="google-button-login"></div></div><div class="social-login provider-login" id="apple-login-login" hidden><button class="apple-signin" id="apple-button-login" type="button"><span aria-hidden="true"></span> Continue with Apple</button></div><div class="login-demo"><strong>Workspace access:</strong> Use the email address and password you registered with. Verify your email before your first login.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#/register">Create an account</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
+  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Use your email and password, or continue with Google.</p><div class="form-error" id="login-error" role="alert" hidden></div><form id="login-form" class="auth-form"><label class="field"><span>Email address</span><input name="email" type="email" autocomplete="username" placeholder="Your business email" maxlength="254" required /></label><label class="field"><span>Password</span><span class="password-input"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" maxlength="128" required /><button type="button" class="password-toggle" data-toggle-password="login-password" aria-label="Show password">Show</button></span></label><div class="auth-options"><label class="remember-option"><input type="checkbox" name="remember" checked /> Remember me</label><a class="text-btn" href="#/reset-password">Forgot password?</a><button type="button" class="text-btn" id="login-resend" hidden>Resend verification email</button></div><button class="btn login-submit" type="submit">Continue to workspace ${icon('arrow')}</button></form><div class="social-divider"><span>or continue with</span></div><div class="social-login google-only" id="google-login-login" hidden><div class="google-signin" id="google-button-login"></div></div><div class="social-login provider-login" id="apple-login-login" hidden><button class="apple-signin" id="apple-button-login" type="button"><span aria-hidden="true"></span> Continue with Apple</button></div><div class="login-demo"><strong>Workspace access:</strong> Use the email address and password you registered with. Verify your email before your first login.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#/register">Create an account</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
   bindPasswordAuth('login');
   setupGoogleSignIn('login');
   setupAppleSignIn('login');
@@ -289,3 +292,25 @@ async function renderEmailVerification(token) {
     error.hidden = false;
   }
 }
+
+function renderResetPassword() {
+  const params = new URLSearchParams(location.hash.split('?')[1] || '');
+  const token = params.get('token') || '';
+  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Reset password</span><h1>Choose a new password.</h1><p>Enter a new password for your StockSetu account.</p></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Reset password</span><h2>New password</h2><div class="form-error" id="reset-error" role="alert" hidden></div><form id="reset-form" class="auth-form"><label class="field"><span>New password</span><input name="password" type="password" minlength="8" maxlength="128" required /></label><label class="field"><span>Confirm password</span><input name="confirm" type="password" minlength="8" maxlength="128" required /></label><button class="btn login-submit" type="submit">Reset password ${icon('arrow')}</button></form><div class="login-bottom">Back to <a class="text-btn" href="#/login">login</a></div></section></main>`;
+  document.querySelector('#reset-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const pw = fd.get('password'); const cf = fd.get('confirm');
+    const err = document.querySelector('#reset-error');
+    if (pw !== cf) { err.textContent = 'Passwords do not match.'; err.hidden = false; return; }
+    try {
+      await apiRequest('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, new_password: pw }) });
+      toast('Password reset successful. Please log in.');
+      location.hash = '#/login';
+    } catch (ex) {
+      err.textContent = ex.message || 'Reset failed';
+      err.hidden = false;
+    }
+  });
+}
+window.renderResetPassword = renderResetPassword;
