@@ -760,6 +760,26 @@ html[data-theme="dark"] .plan-toggle-btn.active,html[data-theme="dark"] .launch-
 html[data-theme="dark"] .launch-plans{background:#171e19}
 html[data-theme="dark"] .plan-tile-price strong,html[data-theme="dark"] .launch-plan-price strong,html[data-theme="dark"] .plan-card-tile h3,html[data-theme="dark"] .launch-plan-card h3{color:#edf3ed}
 html[data-theme="dark"] .plan-current-left b,html[data-theme="dark"] .plan-usage-head b{color:#edf3ed}
+html[data-theme="dark"] .plan-billing-toggle{background:#2a3a31}
+html[data-theme="dark"] .plan-toggle-btn{color:#a0aea6}
+html[data-theme="dark"] .plan-save-badge{background:#263d32;color:#95cda0}
+html[data-theme="dark"] .plan-current-left small,html[data-theme="dark"] .plan-tile-tagline,html[data-theme="dark"] .plan-tile-price small{color:#a0aea6}
+html[data-theme="dark"] .plan-card-tile h3,html[data-theme="dark"] .plan-card-tile .plan-tile-price strong{color:#edf3ed}
+html[data-theme="dark"] .plan-tile-features li{color:#b4c1b8}
+html[data-theme="dark"] .plan-tile-features li .icon{color:#95cda0}
+html[data-theme="dark"] .plan-tile-badge{background:#263d32;color:#a0aea6}
+html[data-theme="dark"] .plan-tile-popular{background:#263d32;color:#95cda0}
+html[data-theme="dark"] .plan-tile-current{background:#95cda0;color:#111915}
+html[data-theme="dark"] .plan-locked-box i{background:#263d32;color:#a0aea6}
+html[data-theme="dark"] .plan-locked-box h3{color:#edf3ed}
+html[data-theme="dark"] .plan-locked-box p{color:#a0aea6}
+html[data-theme="dark"] .plan-pay-box p{color:#a0aea6}
+html[data-theme="dark"] .plan-pay-qr{background:#1b2721;border-color:#34463d;color:#edf3ed}
+html[data-theme="dark"] .plan-current-left i{background:#263d32;color:#95cda0}
+html[data-theme="dark"] .plan-current-left small{color:#a0aea6}
+html[data-theme="dark"] .plan-upgrade-copy{color:#b4c1b8}
+html[data-theme="dark"] .plan-upgrade-note{color:#a0aea6}
+html[data-theme="dark"] .plan-tile-cta.btn-light{background:#202c26;color:#edf3ed;border-color:#34463d}
 
 @media(max-width:900px){
   .plan-grid,.launch-plan-grid{grid-template-columns:repeat(2,1fr)}
