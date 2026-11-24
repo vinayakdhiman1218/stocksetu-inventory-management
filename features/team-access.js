@@ -55,7 +55,7 @@ function teamInitials(value) {
 }
 function teamAccessPage() {
   if (typeof planFeatureAllowed === 'function' && !planFeatureAllowed('teamRoles')) {
-    return `<div class="page-heading"><div><div class="eyebrow">GOLD PLAN</div><h1>Team & access</h1><p>Team roles Gold plan ke saath aate hain.</p></div></div><div class="panel"><div class="plan-locked-box"><i>${icon('shield')}</i><h3>Upgrade to Gold</h3><p>Biller, Accountant, Stock Keeper, Viewer roles unlock honge.</p><button class="btn btn-sm" data-action="select-plan" data-plan="gold">Upgrade to Gold ${icon('arrow')}</button></div></div>`;
+    return `<div class="panel-header"><div><h2>Team &amp; access</h2><p>Gold plan feature.</p></div><i class="settings-emblem">${icon('users')}</i></div><div class="plan-locked-box"><i>${icon('shield')}</i><h3>Upgrade to Gold</h3><p>Biller, Accountant, Stock Keeper and Viewer roles unlock on Gold plan.</p><button class="btn btn-sm" data-action="select-plan" data-plan="gold">Upgrade to Gold ${icon('arrow')}</button></div>`;
   }
   const data = readTeamAccess();
   const ownerName = getUser();

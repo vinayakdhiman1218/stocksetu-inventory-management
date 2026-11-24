@@ -869,3 +869,26 @@ html[data-theme="dark"] .launch-icon.blue{background:#25333a;color:#9dc0d0;borde
 html[data-theme="dark"] .plan-card>p{color:#a0aea6}
 html[data-theme="dark"] .plan-card>i{color:#8fc49e}
 html[data-theme="dark"] .plan-card-max{color:#8ad2ae}
+
+/* ---- dark mode: button contrast (light --green made white text unreadable) ---- */
+html[data-theme="dark"] .btn{background:#2f7a58;color:#fff;border-color:#2f7a58;box-shadow:0 4px 12px rgba(0,0,0,.24)}
+html[data-theme="dark"] .btn:hover{background:#38896a;border-color:#38896a;color:#fff}
+html[data-theme="dark"] .btn-light{background:#202c26;color:#e8eee9;border-color:#34463d;box-shadow:none}
+html[data-theme="dark"] .btn-light:hover{background:#28362e;color:#fff}
+html[data-theme="dark"] .btn-lime{background:#d8bd7f;color:#193c2b;border-color:#d8bd7f}
+html[data-theme="dark"] .btn-lime:hover{background:#e3cb92;color:#193c2b}
+html[data-theme="dark"] .btn-danger{background:#a93e3e;border-color:#a93e3e;color:#fff}
+html[data-theme="dark"] .btn-danger:hover{background:#8f3030;border-color:#8f3030}
+html[data-theme="dark"] .plan-locked-box .btn{background:#2f7a58;color:#fff}
+html[data-theme="dark"] .plan-locked-box .btn:hover{background:#38896a;color:#fff}
+
+/* ---- settings panel polish ---- */
+.settings-panel>.form-footer{padding:14px 19px 17px;border-top:1px solid var(--line)}
+.settings-panel>.table-wrap{padding:0 19px 17px}
+.plan-locked-box{margin:6px 19px 19px;border:1px dashed var(--line);border-radius:14px;background:rgba(47,96,66,.04)}
+html[data-theme="dark"] .plan-locked-box{background:rgba(255,255,255,.03);border-color:#34463d}
+@media(max-width:620px){
+  .settings-panel>.form-footer{padding:12px 14px 14px}
+  .settings-panel>.table-wrap{padding:0 14px 14px}
+  .plan-locked-box{margin:4px 14px 14px}
+}
