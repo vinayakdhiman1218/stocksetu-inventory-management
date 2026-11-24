@@ -155,7 +155,7 @@ function planPage() {
     return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
   }).length;
   const limits = PLAN_LIMITS[plan.id];
-  const billing = p.billing || 'monthly';
+  const billing = planBilling || p.billing || 'monthly';
 
   const cards = PLAN_CATALOG.map(pl => {
     const price = planPrice(pl, billing);
@@ -299,8 +299,6 @@ async function handlePlanAction(action, button) {
     if (billing) {
       planBilling = billing;
       localStorage.setItem('stocksetu-plan-billing', billing);
-      const p = readPlan();
-      writePlan({ ...p, billing });
       if (location.hash === '#/dashboard' || location.hash.startsWith('#/dashboard')) renderDashboard();
       if (document.querySelector('.launch-plan-grid')) {
         // re-render landing plans section in place
