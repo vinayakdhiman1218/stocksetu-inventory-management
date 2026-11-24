@@ -1,4 +1,5 @@
 /* plans feature module — Free / Silver / Gold / Diamond */
+const PLAN_ORDER = { free: 0, silver: 1, gold: 2, diamond: 3 };
 const PLAN_LIMITS = {
   free:    { products: 25,  invoices: 30,   purchases: 20,   users: 1 },
   silver:  { products: 250, invoices: Infinity, purchases: Infinity, users: 2 },
@@ -157,7 +158,7 @@ function planPage() {
   const limits = PLAN_LIMITS[plan.id];
   const billing = planBilling || p.billing || 'monthly';
 
-  const cards = PLAN_CATALOG.map(pl => {
+  const cards = PLAN_CATALOG.filter(pl => PLAN_ORDER[pl.id] >= PLAN_ORDER[plan.id]).map(pl => {
     const price = planPrice(pl, billing);
     const isCurrent = pl.id === plan.id;
     const isHighlight = pl.highlight;
