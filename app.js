@@ -229,7 +229,7 @@ function topbar(title) {
   return `<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Open menu">${icon('menu')}</button><span class="breadcrumbs">${escapeHTML(state.settings.businessName || 'Workspace')} ${icon('chevron')} <b>${escapeHTML(title)}</b></span></div><div class="top-actions"><span class="today-chip">${icon('calendar')} ${new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short'})}</span><button class="icon-btn theme-toggle" data-action="toggle-theme" aria-label="${dark?'Switch to light mode':'Switch to dark mode'}" title="${dark?'Switch to light mode':'Switch to dark mode'}" aria-pressed="${dark}">${icon(dark?'sun':'moon')}</button><button class="icon-btn" data-action="help" aria-label="Help">${icon('spark')}</button><button class="icon-btn notification-button" data-action="notifications" aria-label="${reminderCount ? `Notifications, ${reminderCount} reminders` : 'Notifications'}">${icon('bell')}${reminderCount ? '<i aria-hidden="true"></i>' : ''}</button></div></header>`;
 }
 function renderDashboard() {
-  window.removeEventListener('scroll', updateScrollProgress);
+  if (typeof updateScrollProgress === 'function') window.removeEventListener('scroll', updateScrollProgress);
   const title = activePage;
   const nav = navGroups.map(group => `<div class="workspace-label">${group.label}</div><div class="side-links">${group.items.map(([name, glyph]) => `<button class="side-link ${name === activePage ? 'active' : ''}" data-page="${escapeHTML(name)}">${icon(glyph)}<span>${escapeHTML(name)}</span>${name === 'Inventory' && lowProducts().length ? `<i class="nav-count">${lowProducts().length}</i>` : ''}</button>`).join('')}</div>`).join('');
   root.innerHTML = `<div class="dashboard"><aside class="sidebar" id="sidebar">${brand()}<button type="button" class="workspace-select" data-page="Overview" aria-label="Go to Overview"><i>${icon('grid')}</i><span><small>YOUR WORKSPACE</small><b>${escapeHTML(state.settings.businessName)}</b></span>${icon('chevron')}</button>${nav}<div class="workspace-label">Preferences</div><div class="side-links"><button class="side-link ${activePage === 'Settings' ? 'active' : ''}" data-page="Settings">${icon('settings')}<span>Settings</span></button></div><div class="side-bottom"><div class="plan-card">${planCardSidebar()}</div><div class="profile"><i class="profile-avatar">${initials(getUser())}</i><span class="profile-info"><b>${escapeHTML(getUser())}</b><small>Workspace owner</small></span><button class="logout-btn" data-action="logout" aria-label="Log out">${icon('logout')}</button></div></div></aside><section class="dash-main">${topbar(title)}<main class="main-content" id="main-content">${renderPage(activePage)}</main></section><div class="mobile-backdrop" data-action="close-menu"></div></div>`;
@@ -438,33 +438,70 @@ function showModal(title,subtitle,body) {
 function closeModal(){document.querySelector('.modal-backdrop')?.remove();}
 function downloadCSV(filename,rows){const csv='\ufeff'+rows.map(row=>row.map(value=>{const text=String(value??'');const safe=/^[\t\r=+\-@]/.test(text)?`'${text}`:text;return `"${safe.replaceAll('"','""')}"`;}).join(',')).join('\n');const link=document.createElement('a');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`${filename} downloaded.`);}
 
-function route(){
-  window.removeEventListener('scroll',updateScrollProgress);
+/* Feature scripts load on demand per route so the public landing page only
+   ships its own code, not the whole dashboard bundle. */
+const FEATURE_SCRIPT_CACHE = new Map();
+function loadFeatureScript(src){
+  if (FEATURE_SCRIPT_CACHE.has(src)) return FEATURE_SCRIPT_CACHE.get(src);
+  const promise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = false;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Could not load ${src}`));
+    document.head.appendChild(script);
+  });
+  FEATURE_SCRIPT_CACHE.set(src, promise);
+  return promise;
+}
+const SCRIPTS_LANDING = ['features/plans.js','features/landing.js'];
+const SCRIPTS_AUTH = ['features/auth.js'];
+const SCRIPTS_DASHBOARD = ['features/auth.js','features/dashboard.js','features/inventory.js','features/sales.js','features/purchases.js','features/contacts.js','features/reports.js','features/assistant.js','features/plans.js','features/settings.js','features/team-access.js'];
+function ensureScripts(list){ return Promise.all(list.map(loadFeatureScript)); }
+
+async function route(){
+  if (typeof updateScrollProgress === 'function') window.removeEventListener('scroll',updateScrollProgress);
   const routeHash=location.hash.replace(/^#/,'');
+  document.documentElement.dataset.theme = localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light';
   if(routeHash && !routeHash.startsWith('/')){
-    document.documentElement.dataset.theme = localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light';
+    await ensureScripts(SCRIPTS_LANDING);
     if(!document.querySelector('.launch-nav'))brandPageHome();
     else window.addEventListener('scroll', updateScrollProgress, { passive: true });
     requestAnimationFrame(()=>document.getElementById(decodeURIComponent(routeHash))?.scrollIntoView({behavior:'smooth',block:'start'}));
     return;
   }
   const [path, query = ''] = (routeHash || '/').split('?', 2);
-  document.documentElement.dataset.theme = localStorage.getItem('stocksetu-theme') === 'dark' ? 'dark' : 'light';
   if(path==='/verify-email'){
+    await ensureScripts(SCRIPTS_AUTH);
     renderEmailVerification(new URLSearchParams(query).get('token') || '');
   }else if(path==='/dashboard'){
     if(!getAuthToken()){location.hash='#/login';return;}
+    await ensureScripts(SCRIPTS_DASHBOARD);
     const pageParam = new URLSearchParams(query).get('page');
     activePage = pageParam || 'Overview';renderDashboard();
     loadSettingsFromBackend();
     loadProductsFromBackend();
     if (typeof syncPlanFromBackend === 'function') syncPlanFromBackend();
     if (typeof handlePaymentReturn === 'function') handlePaymentReturn();
-  }else if(path==='/login')renderLogin();else if(path==='/register')renderRegister();else if(path==='/forgot-password')renderForgotPassword();else if(path==='/reset-password')renderResetPassword();else brandPageHome();
+  }else if(path==='/login'||path==='/register'||path==='/forgot-password'||path==='/reset-password'){
+    await ensureScripts(SCRIPTS_AUTH);
+    if (typeof preloadGoogleSignIn === 'function') preloadGoogleSignIn();
+    if(path==='/login')renderLogin();
+    else if(path==='/register')renderRegister();
+    else if(path==='/forgot-password')renderForgotPassword();
+    else renderResetPassword();
+  }else{
+    await ensureScripts(SCRIPTS_LANDING);
+    brandPageHome();
+  }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 window.addEventListener('hashchange',route);
 root.addEventListener('click',event=>{if(event.target.closest('[data-action="close-modal"]'))closeModal();});
-window.addEventListener('storage', event => { if (event.key === 'stocksetu-plan-billing' && event.newValue) { planBilling = event.newValue; if (typeof renderDashboard === 'function' && document.querySelector('.dashboard')) renderDashboard(); } });
-preloadGoogleSignIn();
+window.addEventListener('storage', event => {
+  if (event.key !== 'stocksetu-plan-billing' || !event.newValue) return;
+  if (typeof planBilling === 'undefined') return;
+  planBilling = event.newValue;
+  if (typeof renderDashboard === 'function' && document.querySelector('.dashboard')) renderDashboard();
+});
 route();
