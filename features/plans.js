@@ -234,7 +234,7 @@ function landingPlansSection() {
       <p>${escapeHTML(pl.tagline)}</p>
       <div class="launch-plan-price"><strong>${price === 0 ? 'Free' : '₹' + price.toLocaleString('en-IN')}</strong><small>${price > 0 ? '/' + (billing === 'yearly' ? 'yr' : 'mo') : ''}</small></div>
       <ul>${pl.features.slice(0, 5).map(f => `<li>${icon('check')} ${escapeHTML(f)}</li>`).join('')}</ul>
-      <a class="launch-plan-cta" href="#/dashboard" data-page="Plans">${pl.priceMonthly === 0 ? 'Start free' : 'Upgrade ' + '→'}</a>
+      <a class="launch-plan-cta" href="#/dashboard?page=Plans">${pl.priceMonthly === 0 ? 'Start free' : 'Upgrade ' + '→'}</a>
     </article>`;
   }).join('');
   return `<section class="launch-plans" id="plans"><div class="container"><div class="launch-section-intro reveal"><span class="launch-overline">Simple pricing</span><h2>Pick the plan that fits.<br><em>Upgrade anytime.</em></h2><p>Free se shuru karo, business grow ho toh upgrade kar lo. Zero commission payments.</p></div>

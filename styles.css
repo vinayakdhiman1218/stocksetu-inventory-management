@@ -795,3 +795,77 @@ html[data-theme="dark"] .plan-tile-cta.btn-light{background:#202c26;color:#edf3e
 .label-card .label-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
 .label-card .label-sku { font-size: 11px; color: #666; margin-bottom: 6px; }
 .label-card .label-price { font-weight: 700; margin-top: 6px; }
+
+/* ---- dark mode: plans comparison, settings, labels and remaining light surfaces ---- */
+html[data-theme="dark"] .plan-matrix thead th{background:#26332c;color:#9bd7b8}
+html[data-theme="dark"] .plan-matrix th:first-child,html[data-theme="dark"] .plan-matrix td:first-child{color:#e1ebe4}
+html[data-theme="dark"] .plan-matrix tbody tr:hover{background:#24332b}
+html[data-theme="dark"] .plan-usage-head{color:#a0aea6}
+html[data-theme="dark"] .plan-usage-track{background:#2a3932}
+html[data-theme="dark"] .plan-faq summary{color:#edf3ed}
+html[data-theme="dark"] .plan-faq p{color:#a0aea6}
+html[data-theme="dark"] .plan-upgrade-copy{color:#b4c1b8}
+html[data-theme="dark"] .launch-plan-toggle{background:#232f28}
+html[data-theme="dark"] .launch-plan-toggle-btn{color:#a0aea6}
+html[data-theme="dark"] .launch-plan-save{background:#263d32;color:#95cda0}
+html[data-theme="dark"] .launch-plan-badge{background:#26332c;color:#a0aea6}
+html[data-theme="dark"] .launch-plan-popular{background:#263d32;color:#95cda0}
+html[data-theme="dark"] .launch-plan-card p{color:#a0aea6}
+html[data-theme="dark"] .launch-plan-price small{color:#a0aea6}
+html[data-theme="dark"] .launch-plan-card li{color:#b4c1b8}
+html[data-theme="dark"] .launch-plan-card li .icon{color:#95cda0}
+html[data-theme="dark"] .launch-plan-cta{background:#2f7a58;color:#fff}
+html[data-theme="dark"] .launch-plan-foot{color:#a0aea6}
+html[data-theme="dark"] .launch-plan-foot a{color:#95cda0}
+html[data-theme="dark"] .launch-text-link{color:#8ad2ae}
+html[data-theme="dark"] .launch-overline{color:#8fbf9c}
+html[data-theme="dark"] .launch-section-intro h2 em,html[data-theme="dark"] .launch-workflow-copy h2 em,html[data-theme="dark"] .launch-why-copy h2 em{color:#8fbf9c}
+html[data-theme="dark"] .launch-footer nav a:hover{color:#95cda0}
+html[data-theme="dark"] .launch-footer-inner>small{color:#8d9a92}
+html[data-theme="dark"] .launch-empty-stock>a,html[data-theme="dark"] .launch-mini-empty>a{color:#8ad2ae}
+html[data-theme="dark"] .settings-tabs button{color:#aab7af}
+html[data-theme="dark"] .settings-tabs button.active{color:#8ad2ae}
+html[data-theme="dark"] .settings-logo-row small,html[data-theme="dark"] .form-footer>span{color:#9aa9a1}
+html[data-theme="dark"] .health-legend span{color:#9aa9a1}
+html[data-theme="dark"] .notice-item>i{background:#2c4035;color:#9bd7b8}
+html[data-theme="dark"] .compact-empty{color:#9aa9a1}
+html[data-theme="dark"] .compact-empty>i{background:#26382e;color:#8ad2ae}
+html[data-theme="dark"] .invoice-brand{border-color:#2b3932}
+html[data-theme="dark"] .invoice-brand>span,html[data-theme="dark"] .invoice-to small{color:#9aa9a1}
+html[data-theme="dark"] .label-card{border-color:#4a5a50;background:#202c26}
+html[data-theme="dark"] .label-card .label-sku{color:#a0aea6}
+
+/* ---- dark mode: landing hero preview micro-surfaces ---- */
+html[data-theme="dark"] .stock-glyph{background:#26382e;color:#8fc49e}
+html[data-theme="dark"] .stock-glyph-peach{background:#3a2f26;color:#d0a67a}
+html[data-theme="dark"] .launch-notice{background:#3a2f22;border-color:rgba(214,168,104,.2);color:#d3a86f}
+html[data-theme="dark"] .launch-stock-row em{background:#3a2f22;color:#d3a86f}
+html[data-theme="dark"] .launch-window-avatar{background:#2c4035;border-color:rgba(255,255,255,.14);color:#9bd7b8}
+html[data-theme="dark"] .launch-date{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#aab6ac}
+html[data-theme="dark"] .launch-float>i{background:#26382e;color:#8fc49e}
+html[data-theme="dark"] .launch-float-right>i{background:#3a2f22;color:#d3a86f}
+html[data-theme="dark"] .launch-float>strong{background:#263d32;color:#95cda0}
+html[data-theme="dark"] .launch-empty-stock>i{background:#26382e;border-color:rgba(255,255,255,.1);color:#8fc49e}
+html[data-theme="dark"] .launch-mini-empty>i{background:#26382e;border-color:rgba(255,255,255,.12);color:#8fc49e}
+html[data-theme="dark"] .launch-product-dot{background:linear-gradient(145deg,#2c4435,#243a2c);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+html[data-theme="dark"] .launch-product-dot.amber-dot{background:linear-gradient(145deg,#3d3222,#463825)}
+html[data-theme="dark"] .launch-list-meter{background:#26332c}
+html[data-theme="dark"] .launch-mini-list>div:not(.launch-list-meter){border-color:rgba(255,255,255,.07)}
+html[data-theme="dark"] .invoice-paper-top{border-color:rgba(255,255,255,.1);color:#9eaaa0}
+html[data-theme="dark"] .invoice-paper-top i{background:#26382e;color:#8fc49e}
+html[data-theme="dark"] .invoice-lines i{background:#2c3933}
+html[data-theme="dark"] .invoice-paper-total{color:#9eaaa0}
+html[data-theme="dark"] .invoice-stamp{border-color:#4b7a55;color:#8fc49e}
+html[data-theme="dark"] .launch-flow i{color:#7d9184}
+html[data-theme="dark"] .launch-dash-heading small,html[data-theme="dark"] .launch-dash-heading p,html[data-theme="dark"] .launch-metrics article>span,html[data-theme="dark"] .launch-metrics article>small,html[data-theme="dark"] .launch-panel-head>span small,html[data-theme="dark"] .launch-stock-row>span small,html[data-theme="dark"] .launch-panel-head>a,html[data-theme="dark"] .chart-y,html[data-theme="dark"] .chart-x{color:#9eaaa0}
+html[data-theme="dark"] .launch-metrics article>small.metric-up{color:#82d1a5}
+html[data-theme="dark"] .launch-icon.mint{background:#23382f;color:#8fc49e;border-color:rgba(255,255,255,.08)}
+html[data-theme="dark"] .launch-icon.peach{background:#382d22;color:#d3a878;border-color:rgba(255,255,255,.08)}
+html[data-theme="dark"] .launch-icon.lavender{background:#2f2b3d;color:#b3a6dd;border-color:rgba(255,255,255,.08)}
+html[data-theme="dark"] .launch-icon.blue{background:#25333a;color:#9dc0d0;border-color:rgba(255,255,255,.08)}
+
+/* ---- dark mode: sidebar plan card ---- */
+.plan-card-max{display:inline-block;margin-top:2px;color:var(--green);font-size:9px;font-weight:800}
+html[data-theme="dark"] .plan-card>p{color:#a0aea6}
+html[data-theme="dark"] .plan-card>i{color:#8fc49e}
+html[data-theme="dark"] .plan-card-max{color:#8ad2ae}

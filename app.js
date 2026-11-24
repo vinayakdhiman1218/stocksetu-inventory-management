@@ -454,7 +454,8 @@ function route(){
     renderEmailVerification(new URLSearchParams(query).get('token') || '');
   }else if(path==='/dashboard'){
     if(!getAuthToken()){location.hash='#/login';return;}
-    activePage='Overview';renderDashboard();
+    const pageParam = new URLSearchParams(query).get('page');
+    activePage = pageParam || 'Overview';renderDashboard();
     loadSettingsFromBackend();
     loadProductsFromBackend();
     if (typeof syncPlanFromBackend === 'function') syncPlanFromBackend();
