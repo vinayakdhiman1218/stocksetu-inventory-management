@@ -808,18 +808,26 @@ def refresh_access_token(payload: schemas.RefreshTokenRequest, db: Session = Dep
 def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
     normalized = payload.email.strip().casefold()
     user = db.query(models.User).filter(func.lower(models.User.email) == normalized).first()
+    reset_token = None
     if user is not None:
         raw = secrets.token_urlsafe(32)
         user.password_reset_token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
         user.password_reset_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
-        # Email sending depends on SMTP config; log token in dev for now.
+        sent = False
         try:
             from .email_verification import send_password_reset_email
-            send_password_reset_email(user.email, raw)
+            sent = send_password_reset_email(user.email, raw)
         except Exception:
-            pass
-    return {"message": "If that email is registered, a reset link has been sent."}
+            sent = False
+        if not sent:
+            # SMTP not configured (dev mode): return token so reset works without email.
+            reset_token = raw
+    resp = {"message": "If that email is registered, a reset link has been sent."}
+    if reset_token:
+        resp["reset_token"] = reset_token
+        resp["reset_url"] = f"/#/reset-password?token={reset_token}"
+    return resp
 
 
 @app.post("/auth/reset-password")

@@ -459,7 +459,7 @@ function route(){
     loadProductsFromBackend();
     if (typeof syncPlanFromBackend === 'function') syncPlanFromBackend();
     if (typeof handlePaymentReturn === 'function') handlePaymentReturn();
-  }else if(path==='/login')renderLogin();else if(path==='/register')renderRegister();else if(path==='/reset-password')renderResetPassword();else brandPageHome();
+  }else if(path==='/login')renderLogin();else if(path==='/register')renderRegister();else if(path==='/forgot-password')renderForgotPassword();else if(path==='/reset-password')renderResetPassword();else brandPageHome();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 window.addEventListener('hashchange',route);

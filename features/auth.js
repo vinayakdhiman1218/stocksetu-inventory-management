@@ -188,13 +188,10 @@ function bindPasswordAuth(flow) {
       if (!response.ok) {
         errorBox.textContent = data.detail || `${flow === 'register' ? 'Account creation' : 'Login'} failed. Please try again.`;
         errorBox.hidden = false;
-        const resend = document.querySelector(`#${flow}-resend`);
-        if (flow === 'login' && response.status === 403 && /verify/i.test(errorBox.textContent) && resend) resend.hidden = false;
         return;
       }
       if (flow === 'register') {
-        document.querySelector('#register-form-wrap').innerHTML = `<span class="eyebrow">Check your inbox</span><h2>Verify your email</h2><p class="login-subtitle">We created an account for <strong>${escapeHTML(data.email || values.email)}</strong>. ${data.email_sent ? 'Open the verification link we sent to activate it.' : 'Email delivery is not configured yet, so the verification link could not be sent. Contact the workspace administrator to finish email setup.'}</p><div class="form-error" id="register-success" role="status"></div><button class="btn btn-light" id="register-resend" type="button" ${data.email_sent ? 'hidden' : ''}>Resend verification email</button><div class="login-bottom">Already verified? <a class="text-btn" href="#/login">Log in</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a>`;
-        document.querySelector('#register-resend')?.addEventListener('click', () => resendVerificationEmail(values.email, 'register-success'));
+        document.querySelector('#register-form-wrap').innerHTML = `<span class="eyebrow">Check your inbox</span><h2>Verify your email</h2><p class="login-subtitle">We created an account for <strong>${escapeHTML(data.email || values.email)}</strong>. ${data.email_sent ? 'Open the verification link we sent to activate it.' : 'Email delivery is not configured yet, so the verification link could not be sent. Contact the workspace administrator to finish email setup.'}</p><div class="form-error" id="register-success" role="status"></div><div class="login-bottom">Already verified? <a class="text-btn" href="#/login">Log in</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a>`;
         return;
       }
       if (!data.access_token) throw new Error('The server did not return a sign-in token.');
@@ -221,30 +218,11 @@ function bindPasswordAuth(flow) {
     button.textContent = input.type === 'password' ? 'Show' : 'Hide';
     button.setAttribute('aria-label', input.type === 'password' ? 'Show password' : 'Hide password');
   }));
-  document.querySelector(`#${flow}-resend`)?.addEventListener('click', () => resendVerificationEmail(form.elements.email.value, `${flow}-error`));
 }
 
-async function resendVerificationEmail(email, messageId) {
-  const message = document.querySelector(`#${messageId}`);
-  const button = document.querySelector(`#${messageId.replace('-success','')}-resend`);
-  if (button) { button.disabled = true; button.textContent = 'Sending…'; }
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/email/resend`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || 'Could not send a verification email.');
-    if (message) { message.textContent = data.message || 'If the account needs verification, a fresh link will be sent.'; message.hidden = false; }
-  } catch (error) {
-    if (message) { message.textContent = error.message || 'Could not send a verification email.'; message.hidden = false; }
-  } finally {
-    if (button) { button.disabled = false; button.textContent = 'Resend verification email'; }
-  }
-}
 
 function renderLogin() {
-  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Use your email and password, or continue with Google.</p><div class="form-error" id="login-error" role="alert" hidden></div><form id="login-form" class="auth-form"><label class="field"><span>Email address</span><input name="email" type="email" autocomplete="username" placeholder="Your business email" maxlength="254" required /></label><label class="field"><span>Password</span><span class="password-input"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" maxlength="128" required /><button type="button" class="password-toggle" data-toggle-password="login-password" aria-label="Show password">Show</button></span></label><div class="auth-options"><label class="remember-option"><input type="checkbox" name="remember" checked /> Remember me</label><a class="text-btn" href="#/reset-password">Forgot password?</a><button type="button" class="text-btn" id="login-resend" hidden>Resend verification email</button></div><button class="btn login-submit" type="submit">Continue to workspace ${icon('arrow')}</button></form><div class="social-divider"><span>or continue with</span></div><div class="social-login google-only" id="google-login-login" hidden><div class="google-signin" id="google-button-login"></div></div><div class="social-login provider-login" id="apple-login-login" hidden><button class="apple-signin" id="apple-button-login" type="button"><span aria-hidden="true"></span> Continue with Apple</button></div><div class="login-demo"><strong>Workspace access:</strong> Use the email address and password you registered with. Verify your email before your first login.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#/register">Create an account</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
+  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Your business, one place</span><h1>Make room for <em>better business.</em></h1><p>Bring stock, sales and supplier records together. Start with a clear view of what’s happening today.</p><div class="login-aside-points"><span>${icon('check')} Stock at a glance</span><span>${icon('check')} Sales made simple</span><span>${icon('check')} Reports that help</span></div></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Welcome back</span><h2>Log in to StockSetu</h2><p class="login-subtitle">Use your email and password, or continue with Google.</p><div class="form-error" id="login-error" role="alert" hidden></div><form id="login-form" class="auth-form"><label class="field"><span>Email address</span><input name="email" type="email" autocomplete="username" placeholder="Your business email" maxlength="254" required /></label><label class="field"><span>Password</span><span class="password-input"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" maxlength="128" required /><button type="button" class="password-toggle" data-toggle-password="login-password" aria-label="Show password">Show</button></span></label><div class="auth-options"><label class="remember-option"><input type="checkbox" name="remember" checked /> Remember me</label><a class="text-btn" href="#/forgot-password">Forgot password?</a></div><button class="btn login-submit" type="submit">Continue to workspace ${icon('arrow')}</button></form><div class="social-divider"><span>or continue with</span></div><div class="social-login google-only" id="google-login-login" hidden><div class="google-signin" id="google-button-login"></div></div><div class="social-login provider-login" id="apple-login-login" hidden><button class="apple-signin" id="apple-button-login" type="button"><span aria-hidden="true"></span> Continue with Apple</button></div><div class="login-demo"><strong>Workspace access:</strong> Use the email address and password you registered with. Verify your email before your first login.</div><div class="login-bottom">New to StockSetu? <a class="text-btn" href="#/register">Create an account</a></div><a class="login-back" href="#/">${icon('arrow')} Back to home</a></div></section></main>`;
   bindPasswordAuth('login');
   setupGoogleSignIn('login');
   setupAppleSignIn('login');
@@ -314,3 +292,28 @@ function renderResetPassword() {
   });
 }
 window.renderResetPassword = renderResetPassword;
+
+function renderForgotPassword() {
+  root.innerHTML = `<main class="login-page"><aside class="login-aside">${brand()}<div class="login-message"><span class="eyebrow">Reset password</span><h1>Forgot your password?</h1><p>Enter your email and we’ll give you a reset link.</p></div><div class="login-aside-foot">© 2026 StockSetu · Simple tools for everyday business</div></aside><section class="login-main"><div class="login-form-wrap"><span class="eyebrow">Forgot password</span><h2>Reset link</h2><div class="form-error" id="forgot-error" role="alert" hidden></div><div class="form-success" id="forgot-success" role="status" hidden></div><form id="forgot-form" class="auth-form"><label class="field"><span>Email address</span><input name="email" type="email" maxlength="254" required /></label><button class="btn login-submit" type="submit">Get reset link ${icon('arrow')}</button></form><div class="login-bottom">Back to <a class="text-btn" href="#/login">login</a></div></section></main>`;
+  document.querySelector('#forgot-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = new FormData(e.target).get('email');
+    const err = document.querySelector('#forgot-error');
+    const succ = document.querySelector('#forgot-success');
+    err.hidden = true; succ.hidden = true;
+    try {
+      const data = await apiRequest('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+      if (data.reset_token || data.reset_url) {
+        succ.innerHTML = `Reset link (dev mode, no email sent): <a class="text-btn" href="#/reset-password?token=${encodeURIComponent(data.reset_token)}">Reset password</a>`;
+        succ.hidden = false;
+      } else {
+        succ.textContent = data.message || 'If registered, a reset link has been sent.';
+        succ.hidden = false;
+      }
+    } catch (ex) {
+      err.textContent = ex.message || 'Failed';
+      err.hidden = false;
+    }
+  });
+}
+window.renderForgotPassword = renderForgotPassword;
