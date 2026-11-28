@@ -44,6 +44,7 @@ async function handleProductForm(form,data,type) {
     if (!existing && typeof planCanAddProduct === 'function' && !planCanAddProduct()) { upgradeModal('silver'); return; }
     if(state.products.some(p=>p.sku.toLowerCase()===sku.toLowerCase()&&p.id!==data.id)){form.querySelector('.form-error').hidden=false;return;}
     const value={id:data.id||crypto.randomUUID(),name:String(data.name).trim(),sku,category:String(data.category).trim(),quantity:Number(data.quantity),unit:data.unit,cost:Number(data.cost),price:Number(data.price),supplier:String(data.supplier),reorder:Number(data.reorder)};
+    if (!Number.isFinite(value.quantity) || value.quantity < 0) { toast('Stock quantity cannot be negative.'); return; }
     
     if (!existing) {
       try {

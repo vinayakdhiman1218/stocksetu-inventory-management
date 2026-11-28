@@ -1,10 +1,10 @@
-/* StockSathi — dukaan ka AI chatbot. Records se baat karta hai. */
+/* StockSathi — the shop's AI chatbot. Answers from your own records. */
 
 const ASSISTANT_QUICK = [
-  "Is mahine kharido?",
-  "Kitne din chalega?",
-  "Koi galti dikhi?",
-  "Margin kitna hai?",
+  "Should I buy this month?",
+  "How many days will it last?",
+  "Any mistakes?",
+  "What is the margin?",
 ];
 
 function assistantSelectedId() {
@@ -14,7 +14,7 @@ function assistantSelectedId() {
 
 function assistantChat() {
   if (!state.assistantChat || !state.assistantChat.length) {
-    state.assistantChat = [{ role: "bot", text: "Namaste! Main StockSathi hoon. Koi product chuno aur sawaal poochho — stock, kharid, bikri ya galti, main tumhare records se jawab dunga." }];
+    state.assistantChat = [{ role: "bot", text: "Hi! I am StockSathi. Pick a product and ask a question — stock, purchases, sales or mistakes. I answer from your own records." }];
   }
   return state.assistantChat;
 }
@@ -29,7 +29,7 @@ function aiSettings() {
 
 function assistantPage() {
   if (!state.products.length) {
-    return `${pageHeader('StockSathi', 'Dukaan ka AI chatbot — stock, kharid aur galtiyan ek jagah.')}<section class="panel assistant-panel"><div class="table-empty">Pehle koi product add karo. Phir StockSathi uske records se salah de payega.</div></section>`;
+    return `${pageHeader('StockSathi', 'Your shop AI chatbot — stock, purchases and mistakes in one place.')}<section class="panel assistant-panel"><div class="table-empty">Add a product first. StockSathi will then give advice from its records.</div></section>`;
   }
 
   const messages = assistantChat().map(message => `
@@ -38,18 +38,18 @@ function assistantPage() {
       <div class="assistant-bubble">${escapeHTML(message.text).replaceAll("\n", "<br>")}</div>
     </div>`).join("");
 
-  return `${pageHeader('StockSathi', 'Dukaan ka AI chatbot — kis bhi product ka naam likh kar poochho.')}
+  return `${pageHeader('StockSathi', 'Your shop AI chatbot — type any product name and ask.')}
     <section class="panel assistant-panel">
       <div class="assistant-head">
         <i class="assistant-mark">${icon('spark')}</i>
-        <div><h2>StockSathi</h2><p>Chatbot · sirf tumhare records se</p></div>
+        <div><h2>StockSathi</h2><p>Chatbot · answers only from your records</p></div>
         <span class="assistant-status"><i></i> online</span>
       </div>
       <div class="assistant-quick-row">${ASSISTANT_QUICK.map(q => `<button type="button" class="assistant-chip" data-action="assistant-quick" data-q="${escapeHTML(q)}">${escapeHTML(q)}</button>`).join("")}</div>
       <div class="assistant-chat" id="assistant-chat">${messages}</div>
       <form class="assistant-form" data-form="assistant">
-        <input id="assistant-question" name="question" type="text" maxlength="500" placeholder="e.g. Cotton Shirt ke baare me btao" autocomplete="off" aria-label="Apna sawaal likho">
-        <button class="btn btn-sm" type="submit">${icon('arrow')} Bhejo</button>
+        <input id="assistant-question" name="question" type="text" maxlength="500" placeholder="e.g. Tell me about the Cotton Shirt" autocomplete="off" aria-label="Type your question">
+        <button class="btn btn-sm" type="submit">${icon('arrow')} Send</button>
       </form>
     </section>`;
 }
@@ -101,18 +101,18 @@ async function askStockSathi(question) {
       body: JSON.stringify(body),
     });
     removeAssistantThinking();
-    const answer = data && data.answer ? data.answer : "Jawab nahi mila.";
+    const answer = data && data.answer ? data.answer : "No answer found.";
     const a = data && data.analysis ? data.analysis : null;
     let reply = answer;
     if (a) {
-      const metrics = `Stock: ${Number(a.quantity).toLocaleString("en-IN")} ${a.unit} · Sold 30 din: ${a.sold_30d} ${a.unit} · Maag ~${a.daily_rate > 0 ? a.daily_rate : "—"} ${a.unit}/din · Stock chalega ~${a.stock_days_left ? a.stock_days_left : "—"} din`;
+      const metrics = `Stock: ${Number(a.quantity).toLocaleString("en-IN")} ${a.unit} · Sold (30 days): ${a.sold_30d} ${a.unit} · Demand ~${a.daily_rate > 0 ? a.daily_rate : "—"} ${a.unit}/day · Stock lasts ~${a.stock_days_left ? a.stock_days_left : "—"} days`;
       reply = `${answer}\n\n${metrics}`;
-      if (Array.isArray(a.warnings) && a.warnings.length) reply += `\n\nDhyaan: ${a.warnings.join(" ")}`;
+      if (Array.isArray(a.warnings) && a.warnings.length) reply += `\n\nWatch out: ${a.warnings.join(" ")}`;
     }
     appendAssistantMessage("bot", reply);
   } catch (error) {
     removeAssistantThinking();
-    appendAssistantMessage("bot", `Nahi ho paya: ${error.message || "server se jawab nahi aaya."} Dobara try karo.`);
+    appendAssistantMessage("bot", `Could not answer: ${error.message || "no response from the server."} Please try again.`);
     toast(`StockSathi: ${error.message}`);
   }
 }
@@ -124,5 +124,5 @@ async function openAssistant(productId) {
   activePage = "StockSathi";
   renderDashboard();
   window.scrollTo({ top: 0, behavior: "smooth" });
-  if (product) askStockSathi(`${product.name} ke baare me btao`);
+  if (product) askStockSathi(`Tell me about ${product.name}`);
 }

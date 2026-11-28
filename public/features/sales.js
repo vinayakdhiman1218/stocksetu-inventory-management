@@ -76,8 +76,18 @@ async function handleSaleForm(form,data,type) {
     if (typeof planCanCreateInvoice === 'function' && !planCanCreateInvoice()) { upgradeModal('silver'); return; }
     const rows=[...form.querySelectorAll('.sale-line-row')];const selected=rows.map(row=>({product:state.products.find(p=>p.id===row.querySelector('.sale-product').value),quantity:Number(row.querySelector('.sale-quantity').value)}));
     const requested=new Map();selected.forEach(line=>{if(line.product)requested.set(line.product.id,(requested.get(line.product.id)||0)+line.quantity);});
+    const insufficient = [...requested].filter(([id,quantity]) => quantity > (state.products.find(p=>p.id===id)?.quantity ?? 0));
+    if (insufficient.length) {
+      const names = insufficient.map(([id,quantity]) => {
+        const p = state.products.find(x=>x.id===id);
+        return `${p?.name || 'Product'} (only ${p?.quantity ?? 0} in stock, ${quantity} requested)`;
+      }).join(', ');
+      const err = form.querySelector('.form-error');
+      if (err) { err.textContent = `Not enough stock: ${names}.`; err.hidden = false; }
+      return;
+    }
     const phoneDigits=String(data.customerPhone||'').replace(/\D/g,'');const customerPhone=phoneDigits.length===12&&phoneDigits.startsWith('91')?phoneDigits.slice(-10):phoneDigits.length===11&&phoneDigits.startsWith('0')?phoneDigits.slice(-10):phoneDigits;
-    const invalid=selected.some(line=>!line.product||!Number.isInteger(line.quantity)||line.quantity<1)||[...requested].some(([id,quantity])=>quantity>state.products.find(p=>p.id===id).quantity)||! /^[6-9]\d{9}$/.test(customerPhone);
+    const invalid=selected.some(line=>!line.product||!Number.isInteger(line.quantity)||line.quantity<1)||! /^[6-9]\d{9}$/.test(customerPhone);
     if(invalid){form.querySelector('.form-error').hidden=false;return;}
     const lineItems=[...requested].map(([id,quantity])=>{const product=state.products.find(p=>p.id===id);return{product,quantity,price:Number(product.price),total:Number(product.price)*quantity};});
     const totalQuantity=lineItems.reduce((sum,line)=>sum+line.quantity,0),amount=lineItems.reduce((sum,line)=>sum+line.total,0),customer=String(data.customer).trim();

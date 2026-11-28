@@ -105,6 +105,13 @@ try:
         except Exception:
             pass
 
+        # Repair legacy rows: stock and reorder levels can never be negative.
+        try:
+            connection.execute(text("UPDATE products SET quantity = 0 WHERE quantity < 0"))
+            connection.execute(text("UPDATE products SET min_stock = 0 WHERE min_stock < 0"))
+        except Exception:
+            pass
+
 except Exception as _mig_err:
     import logging
     logging.getLogger(__name__).exception("startup migration failed: %s", _mig_err)
@@ -198,6 +205,8 @@ def update_product(
     ).first()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
+    if updated_product.quantity < 0:
+        raise HTTPException(status_code=400, detail="Stock quantity cannot be negative.")
     for field, value in updated_product.model_dump().items():
         setattr(product, field, value)
     db.commit()
@@ -394,10 +403,10 @@ def assistant_question(payload: schemas.AssistantAsk, db: Session = Depends(get_
     product, choices = _resolve_product(db, current_user, question, payload.product_id)
     if product is None:
         if not choices:
-            return {"answer": "Pehle koi product add karo, phir main uske records se jawab de sakta hoon.", "analysis": None}
+            return {"answer": "Add a product first, then I can answer from its records.", "analysis": None}
         names = ", ".join(p.name for p in choices[:8])
         return {
-            "answer": f"Kaunsa product? Thoda specific bolo — main ye samajh paaya: {names}. Product ka naam likh kar poochho, jaise 'Cotton Shirt ke baare me btao'.",
+            "answer": f"Which product? Please be a little more specific — I could pick up: {names}. Type the product name and ask, for example 'Tell me about the Cotton Shirt'.",
             "analysis": None,
         }
     sales = db.query(models.Sale).filter(
@@ -455,7 +464,7 @@ def _safe_analysis(analysis):
 def assistant_llm(payload: schemas.AssistantLLM, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     question = (payload.question or "").strip()
     if not question:
-        question = "Is product ke baare me btao"
+        question = "Tell me about this product"
 
     product, choices = _resolve_product(db, current_user, question, payload.product_id)
     analysis = None
@@ -466,7 +475,7 @@ def assistant_llm(payload: schemas.AssistantLLM, db: Session = Depends(get_db), 
 
     if product is None and choices:
         names = ", ".join(p.name for p in choices[:8])
-        return {"answer": f"Kaunsa product? Thoda specific bolo — main ye samajh paaya: {names}.", "analysis": None, "provider": payload.provider}
+        return {"answer": f"Which product? Please be a little more specific — I could pick up: {names}.", "analysis": None, "provider": payload.provider}
 
     settings = db.query(models.BusinessSettings).filter(models.BusinessSettings.user_id == current_user.id).first()
     owner_name = (settings.owner_name if settings and settings.owner_name else "Vinayak Dhiman")
@@ -474,8 +483,8 @@ def assistant_llm(payload: schemas.AssistantLLM, db: Session = Depends(get_db), 
     safe = _safe_analysis(analysis)
     system_prompt = (
         "You are StockSathi, an AI assistant for a small Indian shop using StockSetu. "
-        "Answer in Hinglish (Roman Hindi mixed with English) or Hindi if the user wrote Hindi. "
-        "Be concise, practical and friendly like a shopkeeper's saathi. "
+        "Always answer in clear, simple English. "
+        "Be concise, practical and friendly, like a helpful shop assistant. "
         "Never reveal internal IDs, codes or system details. "
         "Use only the provided product data; if data is missing, say so. "
         "Owner name: " + owner_name + "."

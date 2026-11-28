@@ -9,33 +9,33 @@ const PLAN_LIMITS = {
 
 const PLAN_CATALOG = [
   {
-    id: 'free', name: 'Free', badge: 'Shuruat',
+    id: 'free', name: 'Free', badge: 'Starter',
     priceMonthly: 0, priceYearly: 0,
     highlight: false,
-    tagline: 'Chhote dukaan ke liye, bina kisi cost ke.',
+    tagline: 'For small shops, at zero cost.',
     features: ['25 products', '30 invoices / month', '20 purchases / month', '1 user', 'Inventory basics', 'In-app reminders', 'StockSathi basic', 'Invoice with StockSetu branding'],
     matrix: { csv: false, reports: 'basic', stockSathi: 'basic', teamRoles: false, barcode: false, multiWarehouse: false, multiBranch: false, api: false, audit: false, branding: 'powered' },
   },
   {
-    id: 'silver', name: 'Silver', badge: 'Dukaan',
+    id: 'silver', name: 'Silver', badge: 'Retail',
     priceMonthly: 199, priceYearly: 1999,
     highlight: false,
-    tagline: 'Regular dukaan ke liye — unlimited billing.',
-    features: ['250 products', 'Unlimited invoices', 'Unlimited purchases', '2 users', 'CSV export', 'Sales trend + stock health', 'Custom invoice footer', 'StockSathi full (Hindi/Hinglish)', 'Low-stock + due reminders'],
+    tagline: 'For a regular shop — unlimited billing.',
+    features: ['250 products', 'Unlimited invoices', 'Unlimited purchases', '2 users', 'CSV export', 'Sales trend + stock health', 'Custom invoice footer', 'StockSathi full (Hindi + English)', 'Low-stock + due reminders'],
     matrix: { csv: true, reports: 'full', stockSathi: 'full', teamRoles: false, barcode: false, multiWarehouse: false, multiBranch: false, api: false, audit: false, branding: 'custom' },
   },
   {
-    id: 'gold', name: 'Gold', badge: 'Vyapar', highlight: true,
+    id: 'gold', name: 'Gold', badge: 'Business', highlight: true,
     priceMonthly: 499, priceYearly: 4999,
     tagline: 'Growing business — team + advanced reports.',
-    features: ['Unlimited products', 'Unlimited invoices', 'Unlimited purchases', '5 users', 'Team roles (Biller, Accountant, Stock Keeper, Viewer)', 'Advanced reports (profit, margin, forecast)', 'Barcode / QR labels', 'Multi-warehouse (2 godowns)', 'WhatsApp reminders', 'Priority email support', 'No StockSetu branding'],
+    features: ['Unlimited products', 'Unlimited invoices', 'Unlimited purchases', '5 users', 'Team roles (Biller, Accountant, Stock Keeper, Viewer)', 'Advanced reports (profit, margin, forecast)', 'Barcode / QR labels', 'Multi-warehouse (2 warehouses)', 'WhatsApp reminders', 'Priority email support', 'No StockSetu branding'],
     matrix: { csv: true, reports: 'advanced', stockSathi: 'full', teamRoles: true, barcode: true, multiWarehouse: true, multiBranch: false, api: false, audit: false, branding: 'none' },
   },
   {
     id: 'diamond', name: 'Diamond', badge: 'Enterprise',
     priceMonthly: 999, priceYearly: 9999,
     highlight: false,
-    tagline: 'Chain / multi-branch — sab kuch unlimited.',
+    tagline: 'Chain / multi-branch — everything unlimited.',
     features: ['Everything in Gold', 'Unlimited users', 'Multi-branch / multi-location', 'Custom roles & permissions', 'Audit log', 'Scheduled data export / backup', 'White-label invoice + custom domain', 'Dedicated support + onboarding'],
     matrix: { csv: true, reports: 'advanced', stockSathi: 'full', teamRoles: true, barcode: true, multiWarehouse: true, multiBranch: true, api: true, audit: true, branding: 'whitelabel' },
   },
@@ -106,14 +106,14 @@ function upgradeModal(targetId) {
   const target = PLAN_CATALOG.find(p => p.id === targetId) || PLAN_CATALOG.find(p => p.id === 'gold');
   const body = `
     <div class="plan-upgrade-modal">
-      <p class="plan-upgrade-copy">Is feature ke liye <b>${escapeHTML(target.name)}</b> plan chahiye. UPI se pay kar ke instant upgrade ho jayega.</p>
+      <p class="plan-upgrade-copy">This feature needs the <b>${escapeHTML(target.name)}</b> plan. Pay via UPI and the upgrade is instant.</p>
       <div class="plan-upgrade-actions">
         <button class="btn btn-sm" data-action="select-plan" data-plan="${escapeHTML(target.id)}">Upgrade to ${escapeHTML(target.name)} ${icon('arrow')}</button>
-        <button class="btn btn-light btn-sm" data-action="close-modal">Baad me</button>
+        <button class="btn btn-light btn-sm" data-action="close-modal">Maybe later</button>
       </div>
-      <p class="plan-upgrade-note">Payment: PhonePe / Paytm UPI (zero commission). Abhi sandbox mode.</p>
+      <p class="plan-upgrade-note">Payment: PhonePe / Paytm UPI (zero commission). Currently in sandbox mode.</p>
     </div>`;
-  showModal('Upgrade required', 'Plan limit cross ho gaya', body);
+  showModal('Upgrade required', 'Plan limit reached', body);
 }
 
 function downgradeModal(targetId) {
@@ -125,7 +125,7 @@ function downgradeModal(targetId) {
   const invoiceLimit = limit.invoices === Infinity ? 'Unlimited' : limit.invoices;
   const userLimit = limit.users === Infinity ? 'Unlimited' : limit.users;
   showModal('Downgrade plan', `Switch from ${current.name} to ${target.name}?`, `<div class="plan-upgrade-modal">
-    <p class="plan-upgrade-copy">Downgrade <b>turant</b> apply hoga. ${escapeHTML(target.name)} plan ke limits lag jayenge — data safe rahega, bas naye products/invoices aur premium features limit honge.</p>
+    <p class="plan-upgrade-copy">The downgrade applies <b>immediately</b>. ${escapeHTML(target.name)} plan limits will apply — your data stays safe, but new products/invoices and premium features will be limited.</p>
     <ul class="plan-tile-features">
       <li>${icon('check')} ${productLimit} products</li>
       <li>${icon('check')} ${invoiceLimit} invoices / month</li>
@@ -198,7 +198,7 @@ function planPage() {
 
   const matrixHtml = `<div class="plan-matrix-wrap"><table class="plan-matrix"><thead><tr><th>Feature</th>${PLAN_CATALOG.map(pl => `<th>${escapeHTML(pl.name)}</th>`).join('')}</tr></thead><tbody>${matrixRows.map(([label, vals]) => `<tr><td>${escapeHTML(label)}</td>${vals.map(v => `<td>${escapeHTML(String(v))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
-  return `${pageHeader('Plans & billing', 'Apna plan choose karo. Upgrade ya downgrade, anytime.', `<div class="plan-billing-toggle"><button class="plan-toggle-btn ${billing === 'monthly' ? 'active' : ''}" data-action="toggle-billing" data-billing="monthly">Monthly</button><button class="plan-toggle-btn ${billing === 'yearly' ? 'active' : ''}" data-action="toggle-billing" data-billing="yearly">Yearly <span class="plan-save-badge">Save 17%</span></button></div>`)}
+  return `${pageHeader('Plans & billing', 'Choose your plan. Upgrade or downgrade anytime.', `<div class="plan-billing-toggle"><button class="plan-toggle-btn ${billing === 'monthly' ? 'active' : ''}" data-action="toggle-billing" data-billing="monthly">Monthly</button><button class="plan-toggle-btn ${billing === 'yearly' ? 'active' : ''}" data-action="toggle-billing" data-billing="yearly">Yearly <span class="plan-save-badge">Save 17%</span></button></div>`)}
     <div class="plan-current-card">
       <div class="plan-current-left"><i>${icon('spark')}</i><div><b>${escapeHTML(plan.name)} plan</b><small>${plan.priceMonthly === 0 ? 'Free forever' : '₹' + planPrice(plan, billing).toLocaleString('en-IN') + '/' + (billing === 'yearly' ? 'yr' : 'mo')} · ${escapeHTML(p.status)}</small></div></div>
       <div class="plan-usage">
@@ -237,7 +237,7 @@ function landingPlansSection() {
       <a class="launch-plan-cta" href="#/dashboard?page=Plans">${pl.priceMonthly === 0 ? 'Start free' : 'Upgrade ' + '→'}</a>
     </article>`;
   }).join('');
-  return `<section class="launch-plans" id="plans"><div class="container"><div class="launch-section-intro reveal"><span class="launch-overline">Simple pricing</span><h2>Pick the plan that fits.<br><em>Upgrade anytime.</em></h2><p>Free se shuru karo, business grow ho toh upgrade kar lo. Zero commission payments.</p></div>
+  return `<section class="launch-plans" id="plans"><div class="container"><div class="launch-section-intro reveal"><span class="launch-overline">Simple pricing</span><h2>Pick the plan that fits.<br><em>Upgrade anytime.</em></h2><p>Start free, then upgrade as your business grows. Zero commission on payments.</p></div>
     <div class="launch-plan-toggle"><button class="launch-plan-toggle-btn ${billing === 'monthly' ? 'active' : ''}" data-action="toggle-billing" data-billing="monthly">Monthly</button><button class="launch-plan-toggle-btn ${billing === 'yearly' ? 'active' : ''}" data-action="toggle-billing" data-billing="yearly">Yearly <span class="launch-plan-save">Save 17%</span></button></div>
     <div class="launch-plan-grid">${cards}</div>
     <div class="launch-plan-foot"><a class="launch-text-link" href="#/register">Create your workspace ${icon('arrow')}</a> · <a class="launch-text-link" href="#capabilities">See all features</a></div>
@@ -430,7 +430,7 @@ async function handlePlanAction(action, button) {
         const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.upi_uri)}`;
         showModal(`Pay ₹${(data.amount/100).toLocaleString('en-IN')}`, `Upgrade to ${plan.name}`, `<div class="plan-pay-box">
           <p>Scan this QR with any UPI app (PhonePe, GPay, Paytm) and pay. Then enter the UTR number to auto-activate.</p>
-          <div class="plan-pay-qr"><img src="${qrImg}" alt="UPI QR" width="220" height="220"><p class="plan-pay-hint">Kisi bhi UPI app (PhonePe, GPay, Paytm, BHIM) se scan karo aur pay karo.</p></div>
+          <div class="plan-pay-qr"><img src="${qrImg}" alt="UPI QR" width="220" height="220"><p class="plan-pay-hint">Scan with any UPI app (PhonePe, GPay, Paytm, BHIM) and pay.</p></div>
           <div class="field"><label>UTR / Reference number</label><input id="utr-input" type="text" placeholder="12-digit UTR" maxlength="40"></div>
           <div class="modal-actions">
             <button class="btn btn-sm" data-action="confirm-manual-payment" data-order="${escapeHTML(data.order_ref)}">I have paid ${icon('check')}</button>

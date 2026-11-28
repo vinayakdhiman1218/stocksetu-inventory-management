@@ -96,12 +96,12 @@ async function loadProductsFromBackend() {
       name: product.name,
       sku: product.sku || '—',
       category: product.category || 'Uncategorized',
-      quantity: Number(product.quantity ?? 0),
+      quantity: Math.max(0, Number(product.quantity ?? 0)),
       unit: product.unit || 'pcs',
       cost: Number(product.cost_price ?? 0),
       price: Number(product.selling_price ?? 0),
       supplier: product.supplier || '',
-      reorder: Number(product.min_stock ?? 5)
+      reorder: Math.max(0, Number(product.min_stock ?? 5))
     }));
 
     if (location.hash === '#/dashboard') {
@@ -191,6 +191,9 @@ async function persistProductChanges(entries) {
     for (const { product, changes } of entries) {
       const previous = { quantity: product.quantity, cost: product.cost, supplier: product.supplier };
       const updated = { ...product, ...changes };
+      if (changes && Object.prototype.hasOwnProperty.call(changes, 'quantity') && Number(changes.quantity) < 0) {
+        throw new Error(`Not enough stock for ${product.name}. Available: ${product.quantity} ${product.unit}.`);
+      }
       await apiRequest(`/products/${product.id}`, { method: 'PUT', body: JSON.stringify(payload(updated)) });
       Object.assign(product, changes);
       applied.push({ product, previous });
