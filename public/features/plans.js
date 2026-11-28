@@ -269,8 +269,12 @@ async function syncPlanFromBackend() {
     const data = await res.json();
     if (data && data.tier) {
       const p = readPlan();
+      const oldTier = p.tier;
       writePlan({ tier: data.tier, billing: data.billing || p.billing, status: data.status || 'active' });
       if (data.billing) { planBilling = data.billing; localStorage.setItem('stocksetu-plan-billing', data.billing); }
+      if (oldTier && oldTier !== data.tier && typeof toast === 'function') {
+        toast(`Plan updated to ${data.tier.charAt(0).toUpperCase() + data.tier.slice(1)} by server.`);
+      }
     }
   } catch (e) { /* offline: keep local */ }
 }

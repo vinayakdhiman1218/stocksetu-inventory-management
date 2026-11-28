@@ -481,12 +481,10 @@ async function route(){
     if(!getAuthToken()){location.hash='#/login';return;}
     await ensureScripts(SCRIPTS_DASHBOARD);
     const pageParam = new URLSearchParams(query).get('page');
-    activePage = pageParam || 'Overview';renderDashboard();
     loadSettingsFromBackend();
     loadProductsFromBackend();
-    if (typeof syncPlanFromBackend === 'function') {
-      await syncPlanFromBackend();
-    }
+    if (typeof syncPlanFromBackend === 'function') await syncPlanFromBackend();
+    activePage = pageParam || 'Overview';renderDashboard();
     if (typeof handlePaymentReturn === 'function') handlePaymentReturn();
   }else if(path==='/login'||path==='/register'||path==='/forgot-password'||path==='/reset-password'){
     await ensureScripts(SCRIPTS_AUTH);
