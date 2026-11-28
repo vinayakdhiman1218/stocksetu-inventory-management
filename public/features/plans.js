@@ -292,8 +292,8 @@ async function handlePaymentReturn() {
       await syncPlanFromBackend();
       toast('Payment confirmed. Plan upgraded!');
     }
-    // clean URL
-    location.hash = '#/dashboard';
+    // clean URL without triggering a second route pass
+    if (location.hash !== '#/dashboard') location.hash = '#/dashboard';
   } catch (e) {}
 }
 window.syncPlanFromBackend = syncPlanFromBackend;

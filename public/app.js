@@ -369,12 +369,14 @@ if(action==='delete-product'){
   if(product && confirm(`Are you sure you want to delete "${product.name}"?`)){
     (async () => {
       try {
-        await apiRequest(`/products/${id}`, {
-          method: 'DELETE'
-        });
-
+        await apiRequest(`/products/${id}`, { method: 'DELETE' });
+        // Clean up local records referencing this product so reports/stock history stay consistent.
+        state.sales = (state.sales || []).filter(s => !(s.lines || []).some(l => String(l.productId) === String(id)));
+        state.purchases = (state.purchases || []).filter(p => !(p.lines || []).some(l => String(l.productId) === String(id)));
+        state.returns = (state.returns || []).filter(r => String(r.productId) !== String(id));
+        state.movements = (state.movements || []).filter(m => String(m.productId) !== String(id));
         state.products = state.products.filter(p => p.id !== id);
-        saveStore('products');
+        saveAll(['products','sales','purchases','returns','movements']);
         renderDashboard();
         toast('Product deleted successfully.');
       } catch(error) {

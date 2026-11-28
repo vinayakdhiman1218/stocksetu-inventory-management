@@ -313,9 +313,31 @@ def add_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db), current_us
     return {"message": "Sale recorded successfully", "sale_id": new_sale.id, "total_amount": total, "remaining_stock": product.quantity}
 
 
-@app.get("/sales")
-def get_sales(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return db.query(models.Sale).filter(models.Sale.user_id == current_user.id).order_by(models.Sale.id.desc()).all()
+@app.delete("/sales/{sale_id}")
+def delete_sale(sale_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    sale = db.query(models.Sale).filter(models.Sale.id == sale_id, models.Sale.user_id == current_user.id).first()
+    if sale is None:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    # Restore stock
+    product = db.query(models.Product).filter(models.Product.id == sale.product_id, models.Product.user_id == current_user.id).first()
+    if product is not None:
+        product.quantity += sale.quantity
+    db.delete(sale)
+    db.commit()
+    return {"message": "Sale deleted", "restored": sale.quantity if product else 0}
+
+
+@app.delete("/purchases/{purchase_id}")
+def delete_purchase(purchase_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    purchase = db.query(models.Purchase).filter(models.Purchase.id == purchase_id, models.Purchase.user_id == current_user.id).first()
+    if purchase is None:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    product = db.query(models.Product).filter(models.Product.id == purchase.product_id, models.Product.user_id == current_user.id).first()
+    if product is not None:
+        product.quantity = max(0, product.quantity - purchase.quantity)
+    db.delete(purchase)
+    db.commit()
+    return {"message": "Purchase deleted"}
 
 
 @app.get("/dashboard")
