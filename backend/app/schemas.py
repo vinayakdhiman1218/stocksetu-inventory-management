@@ -26,7 +26,8 @@ class SupplierCreate(BaseModel):
 
 class PurchaseCreate(BaseModel):
     product_id: int = Field(gt=0)
-    supplier_id: int = Field(gt=0)
+    supplier_id: Optional[int] = Field(default=None, gt=0)
+    supplier_name: Optional[str] = Field(default=None, max_length=160)
     quantity: int = Field(gt=0)
     unit_cost: float = Field(ge=0)
 

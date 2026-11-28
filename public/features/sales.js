@@ -33,13 +33,18 @@ async function deleteInvoice(invoiceId) {
   const unavailableText = unavailableLines.length ? ` ${unavailableLines.length} item(s) no longer match current inventory and cannot be restocked.` : '';
   if (!confirm(`Delete invoice ${sale.id}? ${restockText}${unavailableText} Any due balance will be reversed.`)) return;
   try {
-    if (restockByProduct.size) {
+    if (Array.isArray(sale.backendSaleIds) && sale.backendSaleIds.length) {
+      for (const sid of sale.backendSaleIds) {
+        try { await apiRequest(`/sales/${sid}`, { method: 'DELETE' }); } catch (_) {}
+      }
+    } else if (restockByProduct.size) {
       await persistProductChanges([...restockByProduct.values()].map(({ product, quantity }) => ({ product, changes: { quantity: Number(product.quantity) + quantity } })));
     }
   } catch (error) {
     toast(`Invoice was not deleted because stock could not be restored: ${error.message}`);
     return;
   }
+  if (typeof loadProductsFromBackend === 'function') loadProductsFromBackend();
   state.sales = state.sales.filter(item => item.id !== invoiceId);
   if (sale.payment === 'Due') {
     const customer = state.customers.find(item => item.name.toLocaleLowerCase() === String(sale.customer).toLocaleLowerCase());
@@ -92,10 +97,21 @@ async function handleSaleForm(form,data,type) {
     const lineItems=[...requested].map(([id,quantity])=>{const product=state.products.find(p=>p.id===id);return{product,quantity,price:Number(product.price),total:Number(product.price)*quantity};});
     const totalQuantity=lineItems.reduce((sum,line)=>sum+line.quantity,0),amount=lineItems.reduce((sum,line)=>sum+line.total,0),customer=String(data.customer).trim();
     if(!customer){form.querySelector('.form-error').hidden=false;return;}
-    try { await persistProductChanges(lineItems.map(({product,quantity})=>({product,changes:{quantity:Number(product.quantity)-quantity}}))); } catch(error) { toast(`Could not record sale: ${error.message}`); return; }
+    const backendSaleIds = [];
+    try {
+      for (const li of lineItems) {
+        const r = await apiRequest('/sales', { method: 'POST', body: JSON.stringify({ product_id: Number(li.product.id), quantity: li.quantity }) });
+        backendSaleIds.push(r.sale_id);
+        li.product.quantity = Number(r.remaining_stock);
+      }
+    } catch (error) {
+      for (const sid of backendSaleIds) { try { await apiRequest(`/sales/${sid}`, { method: 'DELETE' }); } catch (_) {} }
+      toast(`Could not record sale: ${error.message}`);
+      return;
+    }
     let existingCustomer=state.customers.find(c=>c.name.toLowerCase()===customer.toLowerCase());if(!existingCustomer){existingCustomer={id:crypto.randomUUID(),name:customer,phone:customerPhone,email:'',due:0};state.customers.unshift(existingCustomer);}else if(!existingCustomer.phone||existingCustomer.phone!==customerPhone)existingCustomer.phone=customerPhone;if(data.payment==='Due')existingCustomer.due=Number(existingCustomer.due||0)+amount;
-    const invoicePrefs=readFeatureSettings().invoice;const prefix=String(invoicePrefs.prefix||'INV');const lastNumber=Math.max(0,...state.sales.map(item=>{const match=String(item.id).match(new RegExp('^'+prefix+'-(\\d+)$','i'));return match?Number(match[1]):0;}));const nextInvoice=Math.max(Number(invoicePrefs.nextNumber)||1,lastNumber+1);const sale={id:`${prefix}-${String(nextInvoice).padStart(4,'0')}`,customer,phone:customerPhone,date:daysAgo(0),amount,payment:data.payment,paymentTerms:invoicePrefs.paymentTerms,invoiceNote:invoicePrefs.footer,items:totalQuantity,lines:lineItems.map(({product,quantity,price,total})=>({productId:String(product.id),name:product.name,sku:product.sku,quantity,unit:product.unit,price,total}))};state.sales.unshift(sale);invoicePrefs.nextNumber=nextInvoice+1;const savedFeatureSettings=readFeatureSettings();savedFeatureSettings.invoice=invoicePrefs;writeFeatureSettings(savedFeatureSettings);
-    lineItems.forEach(({product,quantity})=>{product.quantity-=quantity;state.movements.unshift({id:nextMovementId(),productId:String(product.id),product:product.name,sku:product.sku,type:'Sale',delta:-quantity,unit:product.unit,reference:sale.id,date:daysAgo(0),note:'Invoice recorded'});});
+    const invoicePrefs=readFeatureSettings().invoice;const prefix=String(invoicePrefs.prefix||'INV');const lastNumber=Math.max(0,...state.sales.map(item=>{const match=String(item.id).match(new RegExp('^'+prefix+'-(\\d+)$','i'));return match?Number(match[1]):0;}));const nextInvoice=Math.max(Number(invoicePrefs.nextNumber)||1,lastNumber+1);const sale={id:`${prefix}-${String(nextInvoice).padStart(4,'0')}`,customer,phone:customerPhone,date:daysAgo(0),amount,payment:data.payment,paymentTerms:invoicePrefs.paymentTerms,invoiceNote:invoicePrefs.footer,items:totalQuantity,lines:lineItems.map(({product,quantity,price,total})=>({productId:String(product.id),name:product.name,sku:product.sku,quantity,unit:product.unit,price,total})),backendSaleIds};state.sales.unshift(sale);invoicePrefs.nextNumber=nextInvoice+1;const savedFeatureSettings=readFeatureSettings();savedFeatureSettings.invoice=invoicePrefs;writeFeatureSettings(savedFeatureSettings);
+    lineItems.forEach(({product,quantity})=>{state.movements.unshift({id:nextMovementId(),productId:String(product.id),product:product.name,sku:product.sku,type:'Sale',delta:-quantity,unit:product.unit,reference:sale.id,date:daysAgo(0),note:'Invoice recorded'});});
     state.activity.unshift({text:'New invoice created',detail:`${sale.id} · ${customer}`,time:'Just now',icon:'receipt'});saveAll(['products','sales','customers','activity','movements']);closeModal();renderDashboard();toast(`${sale.id} created. Stock updated.`);return;
 }
 

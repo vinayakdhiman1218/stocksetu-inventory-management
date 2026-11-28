@@ -104,7 +104,7 @@ async function loadProductsFromBackend() {
       reorder: Math.max(0, Number(product.min_stock ?? 5))
     }));
 
-    if (location.hash === '#/dashboard') {
+    if (location.hash === '#/dashboard' || location.hash.startsWith('#/dashboard')) {
       renderDashboard();
     }
   } catch (error) {
@@ -129,7 +129,7 @@ async function loadSettingsFromBackend() {
   try {
     const settings = await apiRequest('/settings');
     applySettingsFromApi(settings);
-    if (location.hash === '#/dashboard') renderDashboard();
+    if (location.hash === '#/dashboard' || location.hash.startsWith('#/dashboard')) renderDashboard();
   } catch (error) {
     toast(`Could not load business settings: ${error.message}`);
   }

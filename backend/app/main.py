@@ -278,7 +278,15 @@ def add_purchase(purchase: schemas.PurchaseCreate, db: Session = Depends(get_db)
     product = db.query(models.Product).filter(models.Product.id == purchase.product_id, models.Product.user_id == current_user.id).first()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
-    supplier = db.query(models.Supplier).filter(models.Supplier.id == purchase.supplier_id, models.Supplier.user_id == current_user.id).first()
+    supplier = None
+    if purchase.supplier_id is not None:
+        supplier = db.query(models.Supplier).filter(models.Supplier.id == purchase.supplier_id, models.Supplier.user_id == current_user.id).first()
+    if supplier is None:
+        name = (purchase.supplier_name or "").strip() or "Direct purchase"
+        supplier = db.query(models.Supplier).filter(models.Supplier.name == name, models.Supplier.user_id == current_user.id).first()
+        if supplier is None:
+            supplier = models.Supplier(name=name, user_id=current_user.id, phone="", email="", address="")
+            db.add(supplier); db.commit(); db.refresh(supplier)
     if supplier is None:
         raise HTTPException(status_code=404, detail="Supplier not found")
     total = purchase.quantity * purchase.unit_cost
@@ -311,6 +319,11 @@ def add_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db), current_us
     db.commit()
     db.refresh(new_sale)
     return {"message": "Sale recorded successfully", "sale_id": new_sale.id, "total_amount": total, "remaining_stock": product.quantity}
+
+
+@app.get("/sales")
+def get_sales(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return db.query(models.Sale).filter(models.Sale.user_id == current_user.id).order_by(models.Sale.id.desc()).all()
 
 
 @app.delete("/sales/{sale_id}")
