@@ -484,7 +484,9 @@ async function route(){
     activePage = pageParam || 'Overview';renderDashboard();
     loadSettingsFromBackend();
     loadProductsFromBackend();
-    if (typeof syncPlanFromBackend === 'function') syncPlanFromBackend();
+    if (typeof syncPlanFromBackend === 'function') {
+      await syncPlanFromBackend();
+    }
     if (typeof handlePaymentReturn === 'function') handlePaymentReturn();
   }else if(path==='/login'||path==='/register'||path==='/forgot-password'||path==='/reset-password'){
     await ensureScripts(SCRIPTS_AUTH);

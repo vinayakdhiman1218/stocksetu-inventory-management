@@ -175,7 +175,7 @@ function planPage() {
         ${price > 0 ? `<small>/${billing === 'yearly' ? 'year' : 'month'}</small>` : ''}
       </div>
       <ul class="plan-tile-features">${pl.features.map(f => `<li>${icon('check')} ${escapeHTML(f)}</li>`).join('')}</ul>
-      ${isCurrent ? `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Current plan</button>` : (() => { const curPrice = planPrice(plan, (readPlan().billing || 'monthly')); const tgtPrice = planPrice(pl, billing); return tgtPrice > curPrice ? `<button class="btn btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Upgrade ${icon('arrow')}</button>` : (tgtPrice < curPrice ? `<button class="btn btn-light btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Downgrade</button>` : `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Same price</button>`); })()}
+      ${isCurrent ? `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Current plan</button>` : (() => { const curPrice = planPrice(plan, billing); const tgtPrice = planPrice(pl, billing); return tgtPrice > curPrice ? `<button class="btn btn-sm plan-tile-cta" data-action="select-plan" data-plan="${escapeHTML(pl.id)}">Upgrade ${icon('arrow')}</button>` : (tgtPrice < curPrice ? `<button class="btn btn-light btn-sm plan-tile-cta" data-plan="${escapeHTML(pl.id)}" data-action="select-plan">Downgrade</button>` : `<button class="btn btn-light btn-sm plan-tile-cta" disabled>Same price</button>`); })()}
     </article>`;
   }).join('');
 
@@ -270,6 +270,7 @@ async function syncPlanFromBackend() {
     if (data && data.tier) {
       const p = readPlan();
       writePlan({ tier: data.tier, billing: data.billing || p.billing, status: data.status || 'active' });
+      if (data.billing) { planBilling = data.billing; localStorage.setItem('stocksetu-plan-billing', data.billing); }
     }
   } catch (e) { /* offline: keep local */ }
 }
