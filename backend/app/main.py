@@ -60,6 +60,13 @@ try:
                 connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE"))
             connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table_name}_user_id ON {table_name} (user_id)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_products_user_id ON products (user_id)"))
+        # Add unit_price column to sales if missing.
+        try:
+            sale_columns = {column["name"] for column in inspect(engine).get_columns("sales")}
+            if "unit_price" not in sale_columns:
+                connection.execute(text("ALTER TABLE sales ADD COLUMN unit_price FLOAT"))
+        except Exception:
+            pass
         user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
         for column_name, definition in (
             ("google_sub", "VARCHAR(255)"),
@@ -312,9 +319,12 @@ def add_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db), current_us
         raise HTTPException(status_code=404, detail="Product not found")
     if product.quantity < sale.quantity:
         raise HTTPException(status_code=400, detail="Not enough stock available")
-    total = sale.quantity * product.selling_price
+    unit_price = sale.unit_price if sale.unit_price is not None else product.selling_price
+    if unit_price < 0:
+        raise HTTPException(status_code=400, detail="Invalid price")
+    total = sale.quantity * unit_price
     product.quantity -= sale.quantity
-    new_sale = models.Sale(user_id=current_user.id, product_id=product.id, quantity=sale.quantity, total_amount=total, created_at=datetime.now(timezone.utc))
+    new_sale = models.Sale(user_id=current_user.id, product_id=product.id, quantity=sale.quantity, total_amount=total, unit_price=unit_price, created_at=datetime.now(timezone.utc))
     db.add(new_sale)
     db.commit()
     db.refresh(new_sale)

@@ -34,6 +34,7 @@ class PurchaseCreate(BaseModel):
 class SaleCreate(BaseModel):
     product_id: int = Field(gt=0)
     quantity: int = Field(gt=0)
+    unit_price: Optional[float] = Field(default=None, ge=0)
 
 class AssistantAsk(BaseModel):
     question: str = Field(default="", max_length=500)

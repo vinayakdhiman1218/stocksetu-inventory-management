@@ -47,6 +47,7 @@ class Sale(Base):
     product_id = Column(Integer, nullable=False)
     quantity = Column(Integer, nullable=False)
     total_amount = Column(Float, nullable=False)
+    unit_price = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
 
 
